@@ -1,0 +1,48 @@
+name: 🏟️ Halısaha Bot - Perşembe
+
+on:
+  schedule:
+    # Her Çarşamba 20:45 UTC (Türkiye 23:45) - Perşembe için
+    - cron: '45 20 * * 3'
+  workflow_dispatch:
+
+jobs:
+  persembe-rezervasyon:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: 🌐 Setup Chrome
+      uses: browser-actions/setup-chrome@v1
+    
+    - name: 🚗 Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+    
+    - name: 📦 Install Dependencies
+      run: |
+        pip install --upgrade pip
+        pip install selenium==4.15.2
+    
+    - name: 🏟️ Run Perşembe Bot
+      env:
+        HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
+        HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
+        NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        TARGET_DAY: "PERSEMBE"
+      run: python halisaha_bot.py
+    
+    - name: 📸 Upload Screenshots
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: persembe-screenshots
+        path: "*.png"
+        retention-days: 7
