@@ -108,31 +108,35 @@ class HalisahaBot:
             logging.error(f"E-posta hatası: {str(e)}")
     
     def calculate_target_date(self):
-        """TARGET_DAY'e göre sadece bir tarih hesapla"""
+        """TARGET_DAY'e göre 1 hafta sonraki tarihi hesapla"""
         today = datetime.now()
         
         if self.target_day == "PAZARTESI":
-            # Bir sonraki Pazartesi'yi bul
-            days_ahead = 7 - today.weekday()  # Bu haftaki Pazartesi'ye kalan gün
-            if today.weekday() == 6:  # Bugün Pazar ise
-                days_ahead = 1  # Yarın Pazartesi
+            # Bugün Pazar ise, 1 hafta sonraki Pazartesi (8 gün sonra)
+            if today.weekday() == 6:  # Pazar
+                days_ahead = 8  # 1 hafta sonraki Pazartesi
             else:
-                days_ahead = 7 - today.weekday()  # Bir sonraki Pazartesi
+                # Diğer günlerde en yakın Pazartesi + 7 gün
+                days_to_next_monday = (7 - today.weekday()) % 7
+                if days_to_next_monday == 0:
+                    days_to_next_monday = 7
+                days_ahead = days_to_next_monday + 7  # 1 hafta sonraki
             
             target_date = today + timedelta(days=days_ahead)
             
         elif self.target_day == "PERSEMBE":
-            # Bir sonraki Perşembe'yi bul
-            if today.weekday() == 2:  # Bugün Çarşamba ise
-                days_ahead = 1  # Yarın Perşembe
+            # Bugün Çarşamba ise, 1 hafta sonraki Perşembe (8 gün sonra)  
+            if today.weekday() == 2:  # Çarşamba
+                days_ahead = 8  # 1 hafta sonraki Perşembe
             else:
-                # Bir sonraki Perşembe'yi hesapla
-                days_ahead = (3 - today.weekday()) % 7
-                if days_ahead == 0:  # Bugün Perşembe ise
-                    days_ahead = 7
+                # Diğer günlerde en yakın Perşembe + 7 gün
+                days_to_next_thursday = (3 - today.weekday()) % 7
+                if days_to_next_thursday == 0:
+                    days_to_next_thursday = 7
+                days_ahead = days_to_next_thursday + 7  # 1 hafta sonraki
             
             target_date = today + timedelta(days=days_ahead)
-        
+            
         else:
             logging.error(f"Geçersiz TARGET_DAY: {self.target_day}")
             return None
