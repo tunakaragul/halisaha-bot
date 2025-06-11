@@ -1,13 +1,13 @@
-name: 🏟️ Halısaha Rezervasyon Bot
+name: 🏟️ Halısaha Bot - Pazartesi
 
 on:
   schedule:
-    # Her Pazar 20:45 UTC (Türkiye 23:45)
+    # Her Pazar 20:45 UTC (Türkiye 23:45) - Pazartesi için
     - cron: '45 20 * * 0'
-  workflow_dispatch: # Manuel çalıştırma
+  workflow_dispatch:
 
 jobs:
-  rezervasyon:
+  pazartesi-rezervasyon:
     runs-on: ubuntu-latest
     
     steps:
@@ -30,18 +30,19 @@ jobs:
         pip install --upgrade pip
         pip install selenium==4.15.2
     
-    - name: 🏟️ Run Halısaha Bot
+    - name: 🏟️ Run Pazartesi Bot
       env:
         HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
         HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
         NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        TARGET_DAY: "PAZARTESI"
       run: python halisaha_bot.py
     
     - name: 📸 Upload Screenshots
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: bot-screenshots
+        name: pazartesi-screenshots
         path: "*.png"
         retention-days: 7
