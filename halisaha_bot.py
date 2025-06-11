@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🏟️ Halısaha Rezervasyon Bot - GitHub Actions
+🏟️ Halısaha Rezervasyon Bot - Ayrı Günler
 """
 
 import os
@@ -65,6 +65,7 @@ class HalisahaBot:
     def __init__(self):
         self.username = os.environ.get('HALISAHA_USERNAME')
         self.password = os.environ.get('HALISAHA_PASSWORD')
+        self.target_day = os.environ.get('TARGET_DAY', 'PAZARTESI')  # PAZARTESI veya PERSEMBE
         
         if not self.username or not self.password:
             raise ValueError("Kullanıcı bilgileri eksik!")
@@ -78,6 +79,8 @@ class HalisahaBot:
         ]
         
         self.driver = None
+        
+        logging.info(f"🎯 Hedef gün: {self.target_day}")
     
     def send_email(self, subject, message):
         try:
@@ -104,28 +107,40 @@ class HalisahaBot:
         except Exception as e:
             logging.error(f"E-posta hatası: {str(e)}")
     
-    def calculate_target_dates(self):
+    def calculate_target_date(self):
+        """TARGET_DAY'e göre sadece bir tarih hesapla"""
         today = datetime.now()
-        target_dates = []
         
-        for days_ahead in range(7, 21):
+        if self.target_day == "PAZARTESI":
+            # Bir sonraki Pazartesi'yi bul
+            days_ahead = 7 - today.weekday()  # Bu haftaki Pazartesi'ye kalan gün
+            if today.weekday() == 6:  # Bugün Pazar ise
+                days_ahead = 1  # Yarın Pazartesi
+            else:
+                days_ahead = 7 - today.weekday()  # Bir sonraki Pazartesi
+            
             target_date = today + timedelta(days=days_ahead)
             
-            if target_date.weekday() == 0:  # Pazartesi
-                target_dates.append({
-                    'day_name': 'Pazartesi',
-                    'turkish_date': self.format_turkish_date(target_date)
-                })
-            elif target_date.weekday() == 3:  # Perşembe
-                target_dates.append({
-                    'day_name': 'Perşembe',
-                    'turkish_date': self.format_turkish_date(target_date)
-                })
+        elif self.target_day == "PERSEMBE":
+            # Bir sonraki Perşembe'yi bul
+            if today.weekday() == 2:  # Bugün Çarşamba ise
+                days_ahead = 1  # Yarın Perşembe
+            else:
+                # Bir sonraki Perşembe'yi hesapla
+                days_ahead = (3 - today.weekday()) % 7
+                if days_ahead == 0:  # Bugün Perşembe ise
+                    days_ahead = 7
             
-            if len(target_dates) >= 2:
-                break
+            target_date = today + timedelta(days=days_ahead)
         
-        return target_dates
+        else:
+            logging.error(f"Geçersiz TARGET_DAY: {self.target_day}")
+            return None
+        
+        return {
+            'day_name': self.target_day.title(),
+            'turkish_date': self.format_turkish_date(target_date)
+        }
     
     def format_turkish_date(self, date_obj):
         month_names = [
@@ -268,12 +283,14 @@ class HalisahaBot:
     
     def run(self):
         try:
-            logging.info("🚀 Halısaha Bot başladı")
+            logging.info(f"🚀 Halısaha Bot başladı - {self.target_day}")
             
-            target_dates = self.calculate_target_dates()
-            if not target_dates:
-                logging.error("Hedef tarih bulunamadı")
+            target = self.calculate_target_date()
+            if not target:
+                logging.error("Hedef tarih hesaplanamadı")
                 return
+            
+            logging.info(f"🎯 Hedef: {target['day_name']} - {target['turkish_date']}")
             
             if not self.setup_driver():
                 return
@@ -283,28 +300,23 @@ class HalisahaBot:
                     logging.error("Giriş başarısız")
                     return
                 
-                success_count = 0
-                for target in target_dates:
-                    logging.info(f"Deneniyor: {target['day_name']} - {target['turkish_date']}")
+                if self.reserve(target['turkish_date']):
+                    logging.info(f"✅ {target['day_name']} başarılı!")
                     
-                    if self.reserve(target['turkish_date']):
-                        success_count += 1
-                        logging.info(f"✅ {target['day_name']} başarılı!")
-                        
-                        # Başarı e-postası
-                        self.send_email(
-                            f"🎉 {target['day_name']} Rezervasyonu Başarılı!",
-                            f"Tarih: {target['turkish_date']}\nBot başarıyla çalıştı!"
-                        )
-                    else:
-                        logging.info(f"❌ {target['day_name']} slot bulunamadı")
-                
-                # Özet e-posta
-                self.send_email(
-                    f"📊 Bot Raporu: {success_count}/{len(target_dates)} başarılı",
-                    f"Çalışma zamanı: {datetime.now().strftime('%d.%m.%Y %H:%M')}\nBaşarılı rezervasyon: {success_count}"
-                )
-                
+                    # Başarı e-postası
+                    self.send_email(
+                        f"🎉 {target['day_name']} Rezervasyonu Başarılı!",
+                        f"Tarih: {target['turkish_date']}\nBot başarıyla çalıştı!"
+                    )
+                else:
+                    logging.info(f"❌ {target['day_name']} slot bulunamadı")
+                    
+                    # Başarısızlık e-postası
+                    self.send_email(
+                        f"⚠️ {target['day_name']} Slot Bulunamadı",
+                        f"Tarih: {target['turkish_date']}\nUygun slot mevcut değil."
+                    )
+                    
             finally:
                 if self.driver:
                     try:
