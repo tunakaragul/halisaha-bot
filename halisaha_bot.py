@@ -291,40 +291,104 @@ class HalisahaBot:
                 return
             
             logging.info(f"🎯 Hedef: {target['day_name']} - {target['turkish_date']}")
+            logging.info(f"⏰ Polling başlıyor: 25 dakika boyunca her 15 saniyede bir deneme")
             
-            if not self.setup_driver():
-                return
+            # POLLİNG SİSTEMİ
+            max_duration_minutes = 25  # 25 dakika
+            attempt_interval_seconds = 15  # 15 saniyede bir
+            max_attempts = (max_duration_minutes * 60) // attempt_interval_seconds  # 100 deneme
             
-            try:
-                if not self.login():
-                    logging.error("Giriş başarısız")
-                    return
+            attempt_count = 0
+            success = False
+            start_time = datetime.now()
+            
+            while attempt_count < max_attempts and not success:
+                attempt_count += 1
+                current_time = datetime.now()
                 
-                if self.reserve(target['turkish_date']):
-                    logging.info(f"✅ {target['day_name']} başarılı!")
+                logging.info(f"⚡ Deneme #{attempt_count}/{max_attempts} - {current_time.strftime('%H:%M:%S')}")
+                
+                if not self.setup_driver():
+                    logging.error("Driver başlatılamadı, 15 saniye bekleyip tekrar deneniyor")
+                    time.sleep(attempt_interval_seconds)
+                    continue
+                
+                try:
+                    if not self.login():
+                        logging.error("Giriş başarısız, 15 saniye bekleyip tekrar deneniyor")
+                        if self.driver:
+                            self.driver.quit()
+                        time.sleep(attempt_interval_seconds)
+                        continue
                     
-                    # Başarı e-postası
-                    self.send_email(
-                        f"🎉 {target['day_name']} Rezervasyonu Başarılı!",
-                        f"Tarih: {target['turkish_date']}\nBot başarıyla çalıştı!"
-                    )
-                else:
-                    logging.info(f"❌ {target['day_name']} slot bulunamadı")
+                    if self.reserve(target['turkish_date']):
+                        success = True
+                        elapsed_time = (datetime.now() - start_time).total_seconds()
+                        
+                        logging.info(f"🎉 BAŞARILI REZERVASYON!")
+                        logging.info(f"📊 Deneme sayısı: {attempt_count}")
+                        logging.info(f"⏱️ Toplam süre: {elapsed_time:.0f} saniye")
+                        
+                        # Başarı e-postası
+                        self.send_email(
+                            f"🎉 {target['day_name']} Rezervasyonu Başarılı!",
+                            f"""🏟️ BAŞARILI REZERVASYON!
+                            
+    📅 Tarih: {target['turkish_date']}
+    🔢 Deneme: #{attempt_count}/{max_attempts}
+    ⏱️ Süre: {elapsed_time:.0f} saniye
+    🕐 Başlangıç: {start_time.strftime('%H:%M:%S')}
+    🕐 Bitiş: {current_time.strftime('%H:%M:%S')}
+    
+    Bot başarıyla çalıştı! 🚀"""
+                        )
+                        break
+                    else:
+                        logging.info(f"❌ Deneme #{attempt_count} - Slot henüz açılmamış")
+                        
+                except Exception as e:
+                    logging.error(f"Deneme #{attempt_count} hatası: {str(e)}")
                     
-                    # Başarısızlık e-postası
-                    self.send_email(
-                        f"⚠️ {target['day_name']} Slot Bulunamadı",
-                        f"Tarih: {target['turkish_date']}\nUygun slot mevcut değil."
-                    )
+                finally:
+                    if self.driver:
+                        try:
+                            if success:
+                                self.driver.save_screenshot(f"success_{attempt_count}.png")
+                            else:
+                                # Sadece her 10 denemede bir screenshot al (çok fazla olmasın)
+                                if attempt_count % 10 == 0:
+                                    self.driver.save_screenshot(f"attempt_{attempt_count}.png")
+                        except:
+                            pass
+                        self.driver.quit()
+                
+                # Başarılı değilse bekle
+                if not success and attempt_count < max_attempts:
+                    logging.info(f"⏳ {attempt_interval_seconds} saniye bekleniyor...")
+                    time.sleep(attempt_interval_seconds)
+            
+            # Polling sonu raporu
+            total_time = (datetime.now() - start_time).total_seconds()
+            
+            if not success:
+                logging.warning(f"⏰ Polling süresi doldu")
+                logging.info(f"📊 Toplam deneme: {attempt_count}")
+                logging.info(f"⏱️ Toplam süre: {total_time:.0f} saniye")
+                
+                # Başarısızlık e-postası
+                self.send_email(
+                    f"⏰ {target['day_name']} Polling Tamamlandı",
+                    f"""⚠️ POLLING RAPORU
                     
-            finally:
-                if self.driver:
-                    try:
-                        self.driver.save_screenshot("bot_result.png")
-                    except:
-                        pass
-                    self.driver.quit()
-                    
+    📅 Tarih: {target['turkish_date']}
+    🔢 Toplam deneme: {attempt_count}
+    ⏱️ Süre: {total_time:.0f} saniye ({max_duration_minutes} dakika)
+    🕐 Başlangıç: {start_time.strftime('%H:%M:%S')}
+    🕐 Bitiş: {datetime.now().strftime('%H:%M:%S')}
+    
+    Slot açılmadı veya çok hızlı kapandı. 😔"""
+                )
+            
         except Exception as e:
             logging.error(f"Ana hata: {str(e)}")
             self.send_email("❌ Bot Hatası", f"Hata: {str(e)}")
