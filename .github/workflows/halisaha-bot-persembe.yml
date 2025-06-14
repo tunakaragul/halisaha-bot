@@ -1,13 +1,13 @@
-name: 🏟️ Halısaha Bot - Perşembe
+name: 🚀 ULTRA SPEED Halısaha Bot - Perşembe
 
 on:
   schedule:
-    # Her Çarşamba 20:45 UTC (Türkiye 23:45) - Perşembe için
-    - cron: '45 20 * * 3'
+    # Her Çarşamba 20:55 UTC (Türkiye 23:55) - 5 dakika buffer
+    - cron: '55 20 * * 3'
   workflow_dispatch:
 
 jobs:
-  persembe-rezervasyon:
+  ultra-persembe-rezervasyon:
     runs-on: ubuntu-latest
     
     steps:
@@ -30,7 +30,7 @@ jobs:
         pip install --upgrade pip
         pip install selenium==4.15.2
     
-    - name: 🏟️ Run Perşembe Bot
+    - name: 🚀 Run ULTRA SPEED Perşembe Bot
       env:
         HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
         HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
@@ -43,6 +43,6 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: persembe-screenshots
+        name: ultra-persembe-screenshots
         path: "*.png"
         retention-days: 7
