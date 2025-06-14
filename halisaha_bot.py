@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🏟️ Halısaha Rezervasyon Bot - Ayrı Günler
+🏟️ Halısaha Rezervasyon Bot - ULTRA SPEED VERSION
 """
 
 import os
@@ -9,6 +9,7 @@ import sys
 import time
 import smtplib
 import logging
+import threading
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from selenium import webdriver
@@ -17,6 +18,7 @@ from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime, timedelta
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # Logging setup
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(message)s')
@@ -62,10 +64,11 @@ def is_date_in_range(target_date_str, date_range_str):
         return False
 
 class HalisahaBot:
-    def __init__(self):
+    def __init__(self, browser_id=1):
         self.username = os.environ.get('HALISAHA_USERNAME')
         self.password = os.environ.get('HALISAHA_PASSWORD')
         self.target_day = os.environ.get('TARGET_DAY', 'PAZARTESI')  # PAZARTESI veya PERSEMBE
+        self.browser_id = browser_id
         
         if not self.username or not self.password:
             raise ValueError("Kullanıcı bilgileri eksik!")
@@ -73,6 +76,7 @@ class HalisahaBot:
         self.base_url = "https://spor.kadikoy.bel.tr"
         self.target_facility_url = "https://spor.kadikoy.bel.tr/spor-salonu/kalamis-spor?activityCategories=2"
         
+        # Saat öncelik sırası
         self.preferred_hours = [
             "20:00/21:00", "19:00/20:00", "21:00/22:00", 
             "22:00/23:00", "18:00/19:00"
@@ -80,7 +84,7 @@ class HalisahaBot:
         
         self.driver = None
         
-        logging.info(f"🎯 Hedef gün: {self.target_day}")
+        logging.info(f"🎯 Browser #{self.browser_id} - Hedef gün: {self.target_day}")
     
     def send_email(self, subject, message):
         try:
@@ -112,28 +116,24 @@ class HalisahaBot:
         today = datetime.now()
         
         if self.target_day == "PAZARTESI":
-            # Bugün Pazar ise, 1 hafta sonraki Pazartesi (8 gün sonra)
             if today.weekday() == 6:  # Pazar
                 days_ahead = 8  # 1 hafta sonraki Pazartesi
             else:
-                # Diğer günlerde en yakın Pazartesi + 7 gün
                 days_to_next_monday = (7 - today.weekday()) % 7
                 if days_to_next_monday == 0:
                     days_to_next_monday = 7
-                days_ahead = days_to_next_monday + 7  # 1 hafta sonraki
+                days_ahead = days_to_next_monday + 7
             
             target_date = today + timedelta(days=days_ahead)
             
         elif self.target_day == "PERSEMBE":
-            # Bugün Çarşamba ise, 1 hafta sonraki Perşembe (8 gün sonra)  
             if today.weekday() == 2:  # Çarşamba
                 days_ahead = 8  # 1 hafta sonraki Perşembe
             else:
-                # Diğer günlerde en yakın Perşembe + 7 gün
                 days_to_next_thursday = (3 - today.weekday()) % 7
                 if days_to_next_thursday == 0:
                     days_to_next_thursday = 7
-                days_ahead = days_to_next_thursday + 7  # 1 hafta sonraki
+                days_ahead = days_to_next_thursday + 7
             
             target_date = today + timedelta(days=days_ahead)
             
@@ -153,66 +153,92 @@ class HalisahaBot:
         ]
         return f"{date_obj.day} {month_names[date_obj.month]} {date_obj.year}"
     
-    def setup_driver(self):
+    def setup_driver_ultra_fast(self):
+        """Süper hızlı driver setup"""
         try:
             chrome_options = Options()
             chrome_options.add_argument('--headless')
             chrome_options.add_argument('--no-sandbox')
             chrome_options.add_argument('--disable-dev-shm-usage')
             chrome_options.add_argument('--disable-gpu')
-            chrome_options.add_argument('--window-size=1920,1080')
             chrome_options.add_argument('--disable-images')
+            chrome_options.add_argument('--disable-javascript')  # Sayfayı hızlandır
+            chrome_options.add_argument('--disable-plugins')
+            chrome_options.add_argument('--disable-extensions')
+            chrome_options.add_argument('--disable-background-networking')
+            chrome_options.add_argument('--disable-sync')
+            chrome_options.add_argument('--disable-translate')
+            chrome_options.add_argument('--disable-features=VizDisplayCompositor')
+            chrome_options.add_argument('--window-size=1280,720')  # Küçük pencere
+            chrome_options.add_argument('--aggressive-cache-discard')
+            chrome_options.add_argument('--memory-pressure-off')
+            
+            # Ağ hızlandırma
+            chrome_options.add_argument('--enable-tcp-fast-open')
+            chrome_options.add_argument('--max-connections-per-host=10')
             
             self.driver = webdriver.Chrome(options=chrome_options)
-            self.driver.set_page_load_timeout(20)
+            self.driver.set_page_load_timeout(10)  # 20→10 saniye
+            
+            # İmplicit wait'i azalt
+            self.driver.implicitly_wait(1)
+            
             return True
         except Exception as e:
-            logging.error(f"Driver hatası: {str(e)}")
+            logging.error(f"Browser #{self.browser_id} Driver hatası: {str(e)}")
             return False
     
-    def login(self):
+    def login_ultra_fast(self):
+        """Hızlı giriş"""
         try:
             self.driver.get(f"{self.base_url}/giris")
             
-            username_field = WebDriverWait(self.driver, 10).until(
+            # Hızlı element bulma
+            username_field = WebDriverWait(self.driver, 5).until(  # 10→5
                 EC.presence_of_element_located((By.NAME, "username"))
             )
             password_field = self.driver.find_element(By.NAME, "password")
             
-            username_field.send_keys(self.username)
-            password_field.send_keys(self.password)
+            # JavaScript ile hızlı yazma
+            self.driver.execute_script(f"arguments[0].value = '{self.username}';", username_field)
+            self.driver.execute_script(f"arguments[0].value = '{self.password}';", password_field)
             
             login_button = self.driver.find_element(By.ID, "btnLoginSubmit")
-            login_button.click()
+            self.driver.execute_script("arguments[0].click();", login_button)
             
-            time.sleep(3)
+            time.sleep(1)  # 3→1 saniye
             return "giris" not in self.driver.current_url
         except Exception as e:
-            logging.error(f"Giriş hatası: {str(e)}")
+            logging.error(f"Browser #{self.browser_id} Giriş hatası: {str(e)}")
             return False
     
-    def reserve(self, target_date_str):
+    def reserve_lightning_speed(self, target_date_str):
+        """Şimşek hızında rezervasyon"""
         try:
             self.driver.get(self.target_facility_url)
             
-            WebDriverWait(self.driver, 10).until(
+            # Hızlı sayfa yüklenme bekleme
+            WebDriverWait(self.driver, 5).until(  # 10→5
                 EC.presence_of_element_located((By.CLASS_NAME, "yonlendirme-info"))
             )
             
-            # Tarih navigasyonu
-            for attempt in range(5):
+            # Tarih navigasyonu - hızlandırılmış
+            for attempt in range(3):  # 5→3
                 current_date = self.driver.find_element(By.CLASS_NAME, "yonlendirme-info").text
                 if is_date_in_range(target_date_str, current_date):
                     break
                 
                 button = self.driver.find_element(By.ID, "area-sonraki-hafta")
-                self.driver.execute_script("arguments[0].dispatchEvent(new Event('click'));", button)
-                time.sleep(2)
+                self.driver.execute_script("arguments[0].click();", button)  # Event dispatch yerine direkt click
+                time.sleep(0.5)  # 2→0.5 saniye
             
-            # Slot ara
-            time.sleep(2)
+            # Slot arama - minimal wait
+            time.sleep(0.5)  # 2→0.5 saniye
             all_slots = self.driver.find_elements(By.CSS_SELECTOR, "div.lesson.active")
             
+            logging.info(f"🔍 Browser #{self.browser_id} - {len(all_slots)} aktif slot bulundu")
+            
+            # Tüm saatleri paralel dene
             for hour in self.preferred_hours:
                 for slot in all_slots:
                     try:
@@ -220,51 +246,62 @@ class HalisahaBot:
                         slot_hour = slot.get_attribute("data-hour")
                         
                         if date == target_date_str and slot_hour == hour:
-                            logging.info(f"🎯 Slot bulundu: {hour}")
+                            logging.info(f"🎯 Browser #{self.browser_id} - Slot bulundu: {hour}")
                             
-                            # Rezervasyon işlemi
+                            # ULTRA HIZLI rezervasyon işlemi
                             self.driver.execute_script("arguments[0].click();", slot)
                             
-                            popup = WebDriverWait(self.driver, 5).until(
+                            # Popup bekle - kısa timeout
+                            popup = WebDriverWait(self.driver, 3).until(  # 5→3
                                 EC.presence_of_element_located((By.CLASS_NAME, "bootbox"))
                             )
                             
-                            time.sleep(0.5)
+                            # Ardarda tüm işlemler - NO SLEEP!
                             rezerve_radio = popup.find_element(By.CSS_SELECTOR, "input[value='basvuru-yap']")
                             self.driver.execute_script("arguments[0].click();", rezerve_radio)
                             
                             devam_button = popup.find_element(By.CSS_SELECTOR, "button.btn.btn-blue.devam-et")
                             self.driver.execute_script("arguments[0].click();", devam_button)
                             
-                            time.sleep(1)
+                            # Mikro wait - rules checkbox için
+                            time.sleep(0.2)  # 1→0.2 saniye
                             rules_checkbox = self.driver.find_element(By.CSS_SELECTOR, "input[type='checkbox']")
                             self.driver.execute_script("arguments[0].click();", rules_checkbox)
                             
-                            time.sleep(0.5)
+                            # Final click - NO WAIT!
                             self.driver.execute_script("""
                                 var buttons = document.querySelectorAll('button.btn.btn-blue');
                                 for(var i=0; i<buttons.length; i++) {
                                     if(buttons[i].textContent.trim() === 'Evet') {
                                         buttons[i].click();
-                                        break;
+                                        return true;
                                     }
                                 }
                             """)
                             
-                            time.sleep(3)
-                            return self.check_success(target_date_str, hour)
-                    except:
+                            time.sleep(1)  # 3→1 saniye - success check için
+                            success_result = self.check_success_fast(target_date_str, hour)
+                            
+                            if success_result:
+                                logging.info(f"🏆 Browser #{self.browser_id} - REZERVASYON BAŞARILI!")
+                                return True
+                            else:
+                                logging.info(f"⚡ Browser #{self.browser_id} - Devam ediyor...")
+                                
+                    except Exception as e:
+                        # Hata olursa devam et
                         continue
             
             return False
         except Exception as e:
-            logging.error(f"Rezervasyon hatası: {str(e)}")
+            logging.error(f"Browser #{self.browser_id} Rezervasyon hatası: {str(e)}")
             return False
     
-    def check_success(self, target_date, hour):
+    def check_success_fast(self, target_date, hour):
+        """Hızlı başarı kontrolü"""
         try:
             self.driver.get(f"{self.base_url}/ClubMember/MyReservation.aspx")
-            time.sleep(2)
+            time.sleep(1)  # 2→1 saniye
             
             rows = self.driver.find_elements(By.CSS_SELECTOR, "#AreaReservationTable tbody tr")
             check_hour = hour.replace("/", " - ")
@@ -285,9 +322,64 @@ class HalisahaBot:
         except:
             return False
     
-    def run(self):
+    def single_browser_attempt(self, target_date_str, browser_id):
+        """Tek browser denemesi"""
+        bot = HalisahaBot(browser_id)
+        
         try:
-            logging.info(f"🚀 Halısaha Bot başladı - {self.target_day}")
+            if not bot.setup_driver_ultra_fast():
+                return False
+            
+            if not bot.login_ultra_fast():
+                return False
+            
+            return bot.reserve_lightning_speed(target_date_str)
+            
+        except Exception as e:
+            logging.error(f"Browser #{browser_id} genel hatası: {str(e)}")
+            return False
+        finally:
+            if bot.driver:
+                try:
+                    bot.driver.quit()
+                except:
+                    pass
+    
+    def multi_browser_attack(self, target_date_str):
+        """🚀 ÇOKLU BROWSER SALDIRISI"""
+        logging.info("🚀 ÇOKLU BROWSER ATTACK BAŞLADI!")
+        
+        max_browsers = 4  # Aynı anda 4 browser
+        success = False
+        
+        with ThreadPoolExecutor(max_workers=max_browsers) as executor:
+            # Tüm browser'ları aynı anda başlat
+            futures = [
+                executor.submit(self.single_browser_attempt, target_date_str, i+1) 
+                for i in range(max_browsers)
+            ]
+            
+            # İlk başarılı olanı bekle
+            for future in as_completed(futures):
+                try:
+                    result = future.result()
+                    if result:
+                        success = True
+                        logging.info("🏆 ÇOKLU BROWSER'DAN BİRİ BAŞARILI!")
+                        
+                        # Diğer browser'ları durdur
+                        for f in futures:
+                            f.cancel()
+                        
+                        break
+                except Exception as e:
+                    logging.error(f"Browser future hatası: {str(e)}")
+        
+        return success
+    
+    def run_ultra_speed(self):
+        try:
+            logging.info(f"🚀 ULTRA SPEED Halısaha Bot başladı - {self.target_day}")
             
             target = self.calculate_target_date()
             if not target:
@@ -295,78 +387,106 @@ class HalisahaBot:
                 return
             
             logging.info(f"🎯 Hedef: {target['day_name']} - {target['turkish_date']}")
-            logging.info(f"⏰ Polling başlıyor: 25 dakika boyunca her 15 saniyede bir deneme")
+            logging.info(f"⏰ ULTRA SPEED Polling: 23:55'ten itibaren 15 dakika boyunca her 5 saniyede")
             
-            # POLLİNG SİSTEMİ
-            max_duration_minutes = 25  # 25 dakika
-            attempt_interval_seconds = 15  # 15 saniyede bir
-            max_attempts = (max_duration_minutes * 60) // attempt_interval_seconds  # 100 deneme
+            # YENİ POLLİNG SİSTEMİ
+            max_duration_minutes = 15  # 25→15 dakika (23:55-00:10 arası yeterli)
+            attempt_interval_seconds = 5   # 15→5 saniyede bir
+            max_attempts = (max_duration_minutes * 60) // attempt_interval_seconds  # 180 deneme
             
             attempt_count = 0
             success = False
             start_time = datetime.now()
             
+            # İlk 00:00'a kadar normal polling, sonra çoklu browser
             while attempt_count < max_attempts and not success:
                 attempt_count += 1
                 current_time = datetime.now()
                 
                 logging.info(f"⚡ Deneme #{attempt_count}/{max_attempts} - {current_time.strftime('%H:%M:%S')}")
                 
-                if not self.setup_driver():
-                    logging.error("Driver başlatılamadı, 15 saniye bekleyip tekrar deneniyor")
-                    time.sleep(attempt_interval_seconds)
-                    continue
-                
-                try:
-                    if not self.login():
-                        logging.error("Giriş başarısız, 15 saniye bekleyip tekrar deneniyor")
-                        if self.driver:
-                            self.driver.quit()
-                        time.sleep(attempt_interval_seconds)
-                        continue
+                # Saat 00:00'a yaklaştığında çoklu browser kullan
+                if current_time.strftime('%H:%M') >= '23:59':
+                    logging.info("🚨 ÇOKLU BROWSER MODU AKTİF!")
                     
-                    if self.reserve(target['turkish_date']):
+                    if self.multi_browser_attack(target['turkish_date']):
                         success = True
                         elapsed_time = (datetime.now() - start_time).total_seconds()
                         
-                        logging.info(f"🎉 BAŞARILI REZERVASYON!")
+                        logging.info(f"🎉 ULTRA SPEED BAŞARILI REZERVASYON!")
                         logging.info(f"📊 Deneme sayısı: {attempt_count}")
                         logging.info(f"⏱️ Toplam süre: {elapsed_time:.0f} saniye")
                         
                         # Başarı e-postası
                         self.send_email(
-                            f"🎉 {target['day_name']} Rezervasyonu Başarılı!",
-                            f"""🏟️ BAŞARILI REZERVASYON!
+                            f"🏆 ULTRA SPEED {target['day_name']} Rezervasyonu BAŞARILI!",
+                            f"""🚀 ULTRA SPEED BAŞARILI REZERVASYON!
                             
     📅 Tarih: {target['turkish_date']}
     🔢 Deneme: #{attempt_count}/{max_attempts}
     ⏱️ Süre: {elapsed_time:.0f} saniye
     🕐 Başlangıç: {start_time.strftime('%H:%M:%S')}
     🕐 Bitiş: {current_time.strftime('%H:%M:%S')}
+    🚀 Çoklu browser saldırısı başarılı!
     
-    Bot başarıyla çalıştı! 🚀"""
+    ULTRA SPEED Bot mükemmel çalıştı! 🏆"""
                         )
                         break
-                    else:
-                        logging.info(f"❌ Deneme #{attempt_count} - Slot henüz açılmamış")
-                        
-                except Exception as e:
-                    logging.error(f"Deneme #{attempt_count} hatası: {str(e)}")
+                else:
+                    # Normal single browser polling
+                    if not self.setup_driver_ultra_fast():
+                        logging.error("Driver başlatılamadı, 5 saniye bekleyip tekrar deneniyor")
+                        time.sleep(attempt_interval_seconds)
+                        continue
                     
-                finally:
-                    if self.driver:
-                        try:
-                            if success:
-                                self.driver.save_screenshot(f"success_{attempt_count}.png")
-                            else:
-                                # Sadece her 10 denemede bir screenshot al (çok fazla olmasın)
-                                if attempt_count % 10 == 0:
-                                    self.driver.save_screenshot(f"attempt_{attempt_count}.png")
-                        except:
-                            pass
-                        self.driver.quit()
+                    try:
+                        if not self.login_ultra_fast():
+                            logging.error("Giriş başarısız, 5 saniye bekleyip tekrar deneniyor")
+                            if self.driver:
+                                self.driver.quit()
+                            time.sleep(attempt_interval_seconds)
+                            continue
+                        
+                        if self.reserve_lightning_speed(target['turkish_date']):
+                            success = True
+                            elapsed_time = (datetime.now() - start_time).total_seconds()
+                            
+                            logging.info(f"🎉 BAŞARILI REZERVASYON!")
+                            logging.info(f"📊 Deneme sayısı: {attempt_count}")
+                            logging.info(f"⏱️ Toplam süre: {elapsed_time:.0f} saniye")
+                            
+                            # Başarı e-postası
+                            self.send_email(
+                                f"🎉 {target['day_name']} Rezervasyonu Başarılı!",
+                                f"""🏟️ BAŞARILI REZERVASYON!
+                                
+        📅 Tarih: {target['turkish_date']}
+        🔢 Deneme: #{attempt_count}/{max_attempts}
+        ⏱️ Süre: {elapsed_time:.0f} saniye
+        🕐 Başlangıç: {start_time.strftime('%H:%M:%S')}
+        🕐 Bitiş: {current_time.strftime('%H:%M:%S')}
+        
+        ULTRA SPEED Bot başarıyla çalıştı! 🚀"""
+                            )
+                            break
+                        else:
+                            logging.info(f"❌ Deneme #{attempt_count} - Slot henüz açılmamış")
+                            
+                    except Exception as e:
+                        logging.error(f"Deneme #{attempt_count} hatası: {str(e)}")
+                        
+                    finally:
+                        if self.driver:
+                            try:
+                                if success:
+                                    self.driver.save_screenshot(f"ultra_success_{attempt_count}.png")
+                                elif attempt_count % 20 == 0:  # 10→20 (daha az screenshot)
+                                    self.driver.save_screenshot(f"ultra_attempt_{attempt_count}.png")
+                            except:
+                                pass
+                            self.driver.quit()
                 
-                # Başarılı değilse bekle
+                # Başarılı değilse kısa bekle
                 if not success and attempt_count < max_attempts:
                     logging.info(f"⏳ {attempt_interval_seconds} saniye bekleniyor...")
                     time.sleep(attempt_interval_seconds)
@@ -375,14 +495,14 @@ class HalisahaBot:
             total_time = (datetime.now() - start_time).total_seconds()
             
             if not success:
-                logging.warning(f"⏰ Polling süresi doldu")
+                logging.warning(f"⏰ ULTRA SPEED Polling süresi doldu")
                 logging.info(f"📊 Toplam deneme: {attempt_count}")
                 logging.info(f"⏱️ Toplam süre: {total_time:.0f} saniye")
                 
                 # Başarısızlık e-postası
                 self.send_email(
-                    f"⏰ {target['day_name']} Polling Tamamlandı",
-                    f"""⚠️ POLLING RAPORU
+                    f"⏰ ULTRA SPEED {target['day_name']} Polling Tamamlandı",
+                    f"""⚠️ ULTRA SPEED POLLING RAPORU
                     
     📅 Tarih: {target['turkish_date']}
     🔢 Toplam deneme: {attempt_count}
@@ -390,16 +510,16 @@ class HalisahaBot:
     🕐 Başlangıç: {start_time.strftime('%H:%M:%S')}
     🕐 Bitiş: {datetime.now().strftime('%H:%M:%S')}
     
-    Slot açılmadı veya çok hızlı kapandı. 😔"""
+    Çoklu browser saldırısına rağmen slot alınamadı. Rekabet çok yoğun! 😔"""
                 )
             
         except Exception as e:
-            logging.error(f"Ana hata: {str(e)}")
-            self.send_email("❌ Bot Hatası", f"Hata: {str(e)}")
+            logging.error(f"ULTRA SPEED Ana hata: {str(e)}")
+            self.send_email("❌ ULTRA SPEED Bot Hatası", f"Hata: {str(e)}")
 
 def main():
     bot = HalisahaBot()
-    bot.run()
+    bot.run_ultra_speed()
 
 if __name__ == "__main__":
     main()
