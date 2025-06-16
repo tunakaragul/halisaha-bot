@@ -1,14 +1,15 @@
-name: 🚀 ULTRA SPEED Halısaha Bot - Pazartesi
+name: 🚀 PRE-CONNECTED Halısaha Bot - Pazartesi
 
 on:
   schedule:
-    # Her Pazar 20:55 UTC (Türkiye 23:55) - 5 dakika buffer
-    - cron: '55 20 * * 0'
+    # Her Pazar 20:54 UTC (Türkiye 23:54) - Browser Pool için erken başla
+    - cron: '54 20 * * 0'
   workflow_dispatch:
 
 jobs:
-  ultra-pazartesi-rezervasyon:
+  pre-connected-pazartesi:
     runs-on: ubuntu-latest
+    timeout-minutes: 12  # 15→12 dakika yeterli
     
     steps:
     - name: 📥 Checkout Repository
@@ -30,7 +31,7 @@ jobs:
         pip install --upgrade pip
         pip install selenium==4.15.2
     
-    - name: 🚀 Run ULTRA SPEED Pazartesi Bot
+    - name: 🚀 Run PRE-CONNECTED Pazartesi Bot
       env:
         HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
         HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
@@ -43,6 +44,6 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: ultra-pazartesi-screenshots
+        name: pre-connected-pazartesi-screenshots
         path: "*.png"
-        retention-days: 7
+        retention-days: 3
