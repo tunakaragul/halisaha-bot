@@ -1,4 +1,4 @@
-name: 🚀 PRE-CONNECTED Halısaha Bot - Salı
+name: 🔥 WAR ZONE Halısaha Bot - Salı
 
 on:
   schedule:
@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  pre-connected-sali:
+  war-zone-sali:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     
     steps:
     - name: 📥 Checkout Repository
@@ -31,7 +31,7 @@ jobs:
         pip install --upgrade pip
         pip install selenium==4.15.2
     
-    - name: 🚀 Run PRE-CONNECTED Salı Bot
+    - name: 🔥 Run WAR ZONE Salı Bot
       env:
         HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
         HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
@@ -44,6 +44,6 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: pre-connected-sali-screenshots
+        name: war-zone-sali-screenshots
         path: "*.png"
         retention-days: 3
