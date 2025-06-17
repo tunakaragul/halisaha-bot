@@ -525,86 +525,106 @@ class HalisahaBot:
         logging.info("🧹 DEBUG Browser Pool temizlendi")
     
     def run_ultimate_debug(self):
-        """ULTIMATE DEBUG ana fonksiyon"""
-        total_start = time.time()
+    """ULTIMATE DEBUG ana fonksiyon - 9 dakika window"""
+    total_start = time.time()
+    
+    try:
+        logging.info(f"🚀 ULTIMATE DEBUG Bot başladı - {self.target_day}")
         
-        try:
-            logging.info(f"🚀 ULTIMATE DEBUG Bot başladı - {self.target_day}")
+        target = self.calculate_target_date()
+        if not target:
+            logging.error("Hedef tarih hesaplanamadı")
+            return
+        
+        logging.info(f"🎯 Hedef: {target['day_name']} - {target['turkish_date']}")
+        logging.info(f"📋 Strateji: 23:54 Setup → 00:00-00:03 WAR ZONE → 9dk Total")
+        
+        # PHASE 1: DEBUG Browser Setup (2 dakika max)
+        logging.info("⏰ Phase 1: DEBUG Browser Setup...")
+        if not self.setup_debug_browser_pool():
+            logging.error("❌ DEBUG Browser kurulamadı!")
+            self.send_email("❌ DEBUG Bot Hatası", "DEBUG Browser kurulamadı!")
+            return
+        
+        setup_elapsed = time.time() - total_start
+        logging.info(f"✅ Phase 1 tamamlandı ({setup_elapsed:.1f}s)")
+        
+        # PHASE 2: WAR ZONE (00:00-00:03) - 7 dakika kalan süre
+        logging.info("⏰ Phase 2: WAR ZONE - 00:00-00:03 CRITICAL TIME!")
+        
+        attack_start = time.time()
+        max_attack_time = 540 - setup_elapsed  # 9 dakika (540s) - setup süresi
+        attack_interval = 2  # 2 saniyede bir
+        max_attacks = int(max_attack_time // attack_interval)
+        
+        attack_count = 0
+        success = False
+        
+        while attack_count < max_attacks and not success and (time.time() - attack_start) < max_attack_time:
+            attack_count += 1
+            current_time = datetime.now()
             
-            target = self.calculate_target_date()
-            if not target:
-                logging.error("Hedef tarih hesaplanamadı")
+            # WAR ZONE indicator
+            if current_time.strftime('%H:%M') >= '00:00' and current_time.strftime('%H:%M') <= '00:03':
+                war_zone = "🔥 WAR ZONE 🔥"
+            else:
+                war_zone = "⏳ Hazırlık"
+            
+            logging.info(f"⚡ Attack #{attack_count}/{max_attacks} - {current_time.strftime('%H:%M:%S')} - {war_zone}")
+            
+            if self.debug_attack(target['turkish_date']):
+                success = True
+                total_elapsed = time.time() - total_start
+                
+                logging.info(f"🏆 WAR ZONE VICTORY!")
+                
+                self.send_email(
+                    f"🏆 WAR ZONE {target['day_name']} VICTORY!",
+                    f"""🔥 WAR ZONE VICTORY!
+                    
+📅 Tarih: {target['turkish_date']}
+🔢 Attack: #{attack_count}/{max_attacks}
+⏱️ Total: {total_elapsed:.0f}s
+🔥 War Zone: 00:00-00:03
+⏰ Victory Time: {current_time.strftime('%H:%M:%S')}
+
+9 dakika WAR ZONE stratejisi başarılı! 🎯"""
+                )
                 return
             
-            logging.info(f"🎯 Hedef: {target['day_name']} - {target['turkish_date']}")
-            logging.info(f"📋 Strateji: 1 DEBUG Browser → Detaylı Log → Problem Tespiti")
+            logging.info(f"❌ Attack #{attack_count} - Slot bulunamadı")
             
-            # PHASE 1: DEBUG Browser Setup
-            logging.info("⏰ Phase 1: DEBUG Browser Setup...")
-            if not self.setup_debug_browser_pool():
-                logging.error("❌ DEBUG Browser kurulamadı!")
-                self.send_email("❌ DEBUG Bot Hatası", "DEBUG Browser kurulamadı!")
-                return
-            
-            setup_elapsed = time.time() - total_start
-            logging.info(f"✅ Phase 1 tamamlandı ({setup_elapsed:.1f}s)")
-            
-            # PHASE 2: DEBUG Attack (3 deneme)
-            logging.info("⏰ Phase 2: ULTIMATE DEBUG Attack!")
-            
-            for attempt in range(3):
-                logging.info(f"🔬 DEBUG Attack #{attempt+1}/3")
-                
-                if self.debug_attack(target['turkish_date']):
-                    total_elapsed = time.time() - total_start
-                    
-                    logging.info(f"🏆 ULTIMATE DEBUG BAŞARILI!")
-                    
-                    self.send_email(
-                        f"🏆 DEBUG {target['day_name']} BAŞARILI!",
-                        f"""🔬 ULTIMATE DEBUG BAŞARILI!
-                        
-📅 Tarih: {target['turkish_date']}
-🔢 Attempt: #{attempt+1}/3
-⏱️ Total: {total_elapsed:.0f}s
-
-Debug logs sayesinde problem çözüldü! 🎯"""
-                    )
-                    return
-                
-                logging.info(f"❌ DEBUG Attack #{attempt+1} - Slot bulunamadı")
-                if attempt < 2:
-                    time.sleep(5)  # 5 saniye bekle
-            
-            # Final DEBUG rapor
-            total_elapsed = time.time() - total_start
-            
-            logging.warning(f"🔬 ULTIMATE DEBUG tamamlandı")
-            logging.info(f"⏱️ Total time: {total_elapsed:.0f}s")
-            
-            self.send_email(
-                f"🔬 DEBUG {target['day_name']} Raporu",
-                f"""🔍 ULTIMATE DEBUG RAPORU
-                
-📅 Tarih: {target['turkish_date']}
-🔢 Attempts: 3
-⏱️ Total: {total_elapsed:.0f}s
-
-DEBUG log'larını incele:
-- Tarih format kontrolü
-- Slot format kontrolü  
-- Element attribute kontrolü
-
-Detailed logs in GitHub Actions! 📊"""
-            )
-            
-        except Exception as e:
-            total_elapsed = time.time() - total_start
-            logging.error(f"ULTIMATE DEBUG Ana hata ({total_elapsed:.0f}s): {str(e)}")
-            self.send_email("❌ ULTIMATE DEBUG Hatası", f"Hata ({total_elapsed:.0f}s): {str(e)}")
+            if attack_count < max_attacks:
+                time.sleep(attack_interval)
         
-        finally:
-            self.cleanup_browser_pool()
+        # Final WAR ZONE rapor
+        total_elapsed = time.time() - total_start
+        
+        logging.warning(f"🔥 WAR ZONE tamamlandı")
+        logging.info(f"📊 Total attacks: {attack_count}")
+        logging.info(f"⏱️ Total time: {total_elapsed:.0f}s")
+        
+        self.send_email(
+            f"🔥 WAR ZONE {target['day_name']} Raporu",
+            f"""🔥 WAR ZONE RAPORU
+            
+📅 Tarih: {target['turkish_date']}
+🔢 Attacks: {attack_count}
+⏱️ Total: {total_elapsed:.0f}s
+🔥 War Zone: 00:00-00:03 covered
+⏰ Duration: 9 dakika
+
+WAR ZONE tam coverage ama slot alınamadı! 
+Debug log'larını incele. 📊"""
+        )
+        
+    except Exception as e:
+        total_elapsed = time.time() - total_start
+        logging.error(f"WAR ZONE Ana hata ({total_elapsed:.0f}s): {str(e)}")
+        self.send_email("❌ WAR ZONE Hatası", f"Hata ({total_elapsed:.0f}s): {str(e)}")
+    
+    finally:
+        self.cleanup_browser_pool()
 
 def main():
     bot = HalisahaBot()
