@@ -1,4 +1,4 @@
-name: 🚀 PRE-CONNECTED Halısaha Bot - Çarşamba
+name: 🔥 WAR ZONE Halısaha Bot - Çarşamba
 
 on:
   schedule:
@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  pre-connected-carsamba:
+  war-zone-carsamba:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 10
     
     steps:
     - name: 📥 Checkout Repository
@@ -31,7 +31,7 @@ jobs:
         pip install --upgrade pip
         pip install selenium==4.15.2
     
-    - name: 🚀 Run PRE-CONNECTED Çarşamba Bot
+    - name: 🔥 Run WAR ZONE Çarşamba Bot
       env:
         HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
         HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
@@ -44,6 +44,6 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: pre-connected-carsamba-screenshots
+        name: war-zone-carsamba-screenshots
         path: "*.png"
         retention-days: 3
