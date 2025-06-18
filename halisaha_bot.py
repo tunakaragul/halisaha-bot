@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-🏟️ Halısaha Rezervasyon Bot - WORKING VERSION
-Haftaiçi her gün (Pazartesi, Salı, Çarşamba, Perşembe) için optimize edilmiş
+🏟️ Halısaha Rezervasyon Bot - DUAL ATTACK VERSION
+WAR ZONE (00:00) + SCAVENGER MODE (03:30)
 """
 
 import os
@@ -128,7 +128,25 @@ def get_navigation_direction(target_date_str, current_range_str):
         logging.error(f"❌ Yön belirleme hatası: {e}")
         return "next"
 
-class HalisahaBot:
+def get_attack_mode():
+    """Saldırı modunu belirle"""
+    current_time = datetime.now()
+    hour = current_time.hour
+    minute = current_time.minute
+    
+    # WAR ZONE: 00:00-00:10
+    if hour == 0 and minute <= 10:
+        return "WAR_ZONE"
+    
+    # SCAVENGER MODE: 03:25-03:40 (biraz erken başla)
+    elif hour == 3 and 25 <= minute <= 40:
+        return "SCAVENGER"
+    
+    # MAINTENANCE: Diğer saatler
+    else:
+        return "STANDBY"
+
+class DualAttackHalisahaBot:
     def __init__(self):
         self.username = os.environ.get('HALISAHA_USERNAME')
         self.password = os.environ.get('HALISAHA_PASSWORD')
@@ -140,7 +158,7 @@ class HalisahaBot:
         self.base_url = "https://spor.kadikoy.bel.tr"
         self.target_facility_url = "https://spor.kadikoy.bel.tr/spor-salonu/kalamis-spor?activityCategories=2"
         
-        # Akşam saatler öncelikli (haftaiçi için ideal)
+        # Prime time saatler - değişmedi! 🔥
         self.preferred_hours = [
             "20:00/21:00", "19:00/20:00", "21:00/22:00", 
             "22:00/23:00", "18:00/19:00", "17:00/18:00",
@@ -151,7 +169,7 @@ class HalisahaBot:
         
         self.driver = None
         
-        logging.info(f"🎯 Halısaha Bot hazır - Hedef gün: {self.target_day}")
+        logging.info(f"🎯 Dual Attack Bot hazır - Hedef gün: {self.target_day}")
     
     def calculate_target_date(self):
         """TARGET_DAY'e göre 1 hafta sonraki tarihi hesapla"""
@@ -171,15 +189,12 @@ class HalisahaBot:
             target_weekday = day_map[self.target_day.upper()]
             current_weekday = today.weekday()
             
-            # Haftaiçi gün hesaplama:
-            # - Eğer bugün hedef günün bir gün öncesiyse: 1 hafta sonraki hedef gün
-            # - Diğer durumlarda: En yakın gelecekteki hedef gün + 1 hafta
-            
+            # Dual attack için tarih hesaplama
             current_time = today.time()
             
-            # Gece yarısından sonra mı kontrol et (00:00-01:00 arası)
-            if current_time.hour == 0:
-                # Gece yarısı, yeni slot açılma zamanı
+            # Gece yarısından sonra mı kontrol et (00:00-04:00 arası)
+            if current_time.hour <= 4:
+                # Gece yarısı saldırı zamanı
                 # Bir gün önceki akşam mı kontrol et
                 yesterday_weekday = (current_weekday - 1) % 7
                 
@@ -368,10 +383,11 @@ class HalisahaBot:
         except:
             pass
     
-    def find_and_reserve_slot(self, target_date_str):
-        """Slot bul ve rezerve et - Working logic"""
+    def find_and_reserve_slot(self, target_date_str, attack_mode="WAR_ZONE"):
+        """Slot bul ve rezerve et - Mode aware"""
         try:
-            logging.info(f"🎯 Hedef tarihte slotlar aranıyor: {target_date_str}")
+            mode_emoji = "🔥" if attack_mode == "WAR_ZONE" else "🏴‍☠️"
+            logging.info(f"{mode_emoji} {attack_mode}: Hedef tarihte slotlar aranıyor: {target_date_str}")
             time.sleep(3)
             
             # Alerts dismiss
@@ -404,7 +420,7 @@ class HalisahaBot:
                         if date == target_date_str and hour == test_hour:
                             target_slot = slot
                             found_hour = hour
-                            logging.info(f"🎯 HEDEF SLOT BULUNDU: {date} - {hour}")
+                            logging.info(f"🎯 {mode_emoji} HEDEF SLOT BULUNDU: {date} - {hour}")
                             break
                     except:
                         continue
@@ -413,7 +429,7 @@ class HalisahaBot:
                     break
             
             if not target_slot:
-                logging.error(f"❌ Hedef slot bulunamadı: {target_date_str}")
+                logging.error(f"❌ {attack_mode}: Hedef slot bulunamadı: {target_date_str}")
                 
                 # Sadece hedef tarih slotlarını göster
                 logging.info(f"🔍 {target_date_str} tarihli tüm slotlar:")
@@ -429,7 +445,7 @@ class HalisahaBot:
                 return False
             
             # REZERVASYON İŞLEMİ
-            logging.info(f"✅ Slot bulundu, rezervasyon işlemi başlatılıyor...")
+            logging.info(f"✅ {mode_emoji} Slot bulundu, rezervasyon işlemi başlatılıyor...")
             logging.info(f"📍 Slot detayı: {target_date_str} - {found_hour}")
             
             # Slot seçimi
@@ -483,18 +499,18 @@ class HalisahaBot:
                 success = self.check_reservation_success(target_date_str, found_hour)
                 
                 if success:
-                    logging.info("🎉 ✅ REZERVASYON BAŞARIYLA TAMAMLANDI!")
+                    logging.info(f"🎉 ✅ {mode_emoji} REZERVASYON BAŞARIYLA TAMAMLANDI!")
                     return True
                 else:
-                    logging.error("❌ Rezervasyon tamamlanamadı veya doğrulanamadı!")
+                    logging.error(f"❌ {attack_mode}: Rezervasyon tamamlanamadı veya doğrulanamadı!")
                     return False
                     
             except Exception as popup_error:
-                logging.error(f"❌ Pop-up işlemlerinde hata: {str(popup_error)}")
+                logging.error(f"❌ {attack_mode}: Pop-up işlemlerinde hata: {str(popup_error)}")
                 return False
             
         except Exception as e:
-            logging.error(f"❌ Slot bulma/rezervasyon genel hatası: {str(e)}")
+            logging.error(f"❌ {attack_mode}: Slot bulma/rezervasyon genel hatası: {str(e)}")
             return False
     
     def check_reservation_success(self, target_date_str, target_hour):
@@ -583,122 +599,178 @@ class HalisahaBot:
         except Exception as e:
             logging.error(f"E-posta hatası: {str(e)}")
     
-    def run_war_zone_attack(self):
-        """WAR ZONE ana fonksiyon - Çalışan logic ile"""
+    def wait_for_scavenger_mode(self):
+        """SCAVENGER MODE zamanını bekle"""
+        current_time = datetime.now()
+        
+        # 03:25'e kadar bekle
+        target_time = current_time.replace(hour=3, minute=25, second=0, microsecond=0)
+        
+        # Eğer şu an 03:25'ten sonraysa, yarın 03:25'i bekle
+        if current_time.time() > target_time.time():
+            target_time += timedelta(days=1)
+        
+        wait_seconds = (target_time - current_time).total_seconds()
+        
+        if wait_seconds > 0:
+            logging.info(f"⏳ SCAVENGER MODE için bekleniyor: {wait_seconds:.0f} saniye ({target_time.strftime('%H:%M:%S')})")
+            time.sleep(wait_seconds)
+    
+    def run_dual_attack(self):
+        """DUAL ATTACK ana fonksiyon - WAR ZONE + SCAVENGER MODE"""
         start_time = time.time()
         
         try:
-            logging.info(f"🚀 WAR ZONE Halısaha Bot başladı - {self.target_day}")
-            logging.info("="*60)
-            
             # Hedef tarih hesapla
             target = self.calculate_target_date()
             if not target:
                 raise Exception("Hedef tarih hesaplanamadı")
             
+            logging.info(f"🚀 DUAL ATTACK Halısaha Bot başladı - {self.target_day}")
             logging.info(f"🎯 Hedef: {target['day_name']} - {target['turkish_date']}")
+            logging.info("🔥 WAR ZONE (00:00-00:05) + 🏴‍☠️ SCAVENGER MODE (03:30-03:35)")
+            logging.info("="*60)
             
+            # Attack mode belirle
+            attack_mode = get_attack_mode()
             current_time = datetime.now()
+            
             logging.info(f"⏰ Başlangıç zamanı: {current_time.strftime('%H:%M:%S')}")
+            logging.info(f"🎯 Attack Mode: {attack_mode}")
             
-            # WAR ZONE time check
-            if current_time.strftime('%H:%M') >= '00:00' and current_time.strftime('%H:%M') <= '00:05':
-                war_zone_status = "🔥 WAR ZONE ACTIVE 🔥"
-            else:
-                war_zone_status = "⏳ Hazırlık Modu"
-            
-            logging.info(f"🎯 Durum: {war_zone_status}")
-            
-            # 1. Driver setup
+            # Driver setup
             if not self.setup_driver():
                 raise Exception("Driver setup başarısız")
             
-            # 2. Login
+            # Login
             if not self.login():
                 raise Exception("Login başarısız")
             
-            # 3. Halısaha sayfasına git
+            # Halısaha sayfasına git
             if not self.navigate_to_facility():
                 raise Exception("Sayfa yönlendirme başarısız")
             
-            # 4. WAR ZONE ATTACK LOOP
-            attack_start = time.time()
-            max_attack_time = 480  # 8 dakika (480 saniye)
-            attack_interval = 3  # 3 saniyede bir
-            max_attacks = int(max_attack_time // attack_interval)
-            
-            attack_count = 0
             success = False
             
-            while attack_count < max_attacks and not success and (time.time() - attack_start) < max_attack_time:
-                attack_count += 1
-                attack_time = datetime.now()
+            # PHASE 1: WAR ZONE (00:00-00:05)
+            if attack_mode == "WAR_ZONE" or current_time.hour == 0:
+                logging.info("🔥 WAR ZONE BAŞLADI!")
                 
-                # WAR ZONE indicator update
-                if attack_time.strftime('%H:%M') >= '00:00' and attack_time.strftime('%H:%M') <= '00:05':
-                    war_zone = "🔥 WAR ZONE 🔥"
-                else:
-                    war_zone = "⏳ Hazırlık"
+                attack_start = time.time()
+                max_attack_time = 300  # 5 dakika (300 saniye)
+                attack_interval = 3  # 3 saniyede bir
+                max_attacks = int(max_attack_time // attack_interval)
                 
-                logging.info(f"⚡ Attack #{attack_count}/{max_attacks} - {attack_time.strftime('%H:%M:%S')} - {war_zone}")
+                attack_count = 0
                 
-                # 4a. Hedef tarihe git
-                if self.navigate_to_target_date(target['turkish_date']):
-                    # 4b. Slot bul ve rezerve et
-                    if self.find_and_reserve_slot(target['turkish_date']):
-                        success = True
-                        total_elapsed = time.time() - start_time
-                        
-                        logging.info(f"🏆 WAR ZONE VICTORY!")
-                        
-                        self.send_email(
-                            f"🏆 {target['day_name']} WAR ZONE VICTORY!",
-                            f"""🔥 WAR ZONE VICTORY!
+                while attack_count < max_attacks and not success and (time.time() - attack_start) < max_attack_time:
+                    attack_count += 1
+                    attack_time = datetime.now()
+                    
+                    logging.info(f"🔥 WAR ZONE Attack #{attack_count}/{max_attacks} - {attack_time.strftime('%H:%M:%S')}")
+                    
+                    # Hedef tarihe git ve slot ara
+                    if self.navigate_to_target_date(target['turkish_date']):
+                        if self.find_and_reserve_slot(target['turkish_date'], "WAR_ZONE"):
+                            success = True
+                            total_elapsed = time.time() - start_time
                             
+                            logging.info(f"🏆 WAR ZONE VICTORY!")
+                            
+                            self.send_email(
+                                f"🔥 {target['day_name']} WAR ZONE VICTORY!",
+                                f"""🔥 WAR ZONE VICTORY!
+                                
 📅 Tarih: {target['turkish_date']} ({target['day_name']})
 🔢 Attack: #{attack_count}/{max_attacks}
 ⏱️ Total: {total_elapsed:.0f}s
-🔥 War Zone: 00:00-00:05
+🔥 Phase: WAR ZONE (00:00-00:05)
 ⏰ Victory Time: {attack_time.strftime('%H:%M:%S')}
 🏟️ Tesis: Kalamış Spor Tesisi
 
-Working logic ile başarı! 🎯"""
-                        )
-                        return
-                else:
-                    logging.warning(f"❌ Attack #{attack_count} - Tarih navigasyonu başarısız")
+İlk saldırıda başarı! 🎯"""
+                            )
+                            return
+                    
+                    if attack_count < max_attacks:
+                        time.sleep(attack_interval)
                 
-                logging.info(f"❌ Attack #{attack_count} - Slot bulunamadı/rezerve edilemedi")
+                if not success:
+                    logging.warning("🔥 WAR ZONE tamamlandı - Başarısız")
+                    logging.info("🏴‍☠️ SCAVENGER MODE'a hazırlanılıyor...")
+            
+            # PHASE 2: SCAVENGER MODE için bekle ve saldır
+            if not success:
+                # Eğer henüz SCAVENGER zamanı değilse bekle
+                if attack_mode == "STANDBY":
+                    self.wait_for_scavenger_mode()
                 
-                if attack_count < max_attacks:
-                    time.sleep(attack_interval)
-            
-            # Final WAR ZONE rapor
-            total_elapsed = time.time() - start_time
-            
-            logging.warning(f"🔥 WAR ZONE tamamlandı - Başarısız")
-            logging.info(f"📊 Total attacks: {attack_count}")
-            logging.info(f"⏱️ Total time: {total_elapsed:.0f}s")
-            
-            self.send_email(
-                f"🔥 {target['day_name']} WAR ZONE Raporu",
-                f"""🔥 WAR ZONE RAPORU - {target['day_name']}
+                logging.info("🏴‍☠️ SCAVENGER MODE BAŞLADI!")
+                logging.info("🏴‍☠️ Düşen rezervasyonları avcılama zamanı!")
                 
-📅 Tarih: {target['turkish_date']}
-🔢 Attacks: {attack_count}
+                scavenger_start = time.time()
+                max_scavenger_time = 600  # 10 dakika (600 saniye)
+                scavenger_interval = 5  # 5 saniyede bir (daha az agresif)
+                max_scavenger_attacks = int(max_scavenger_time // scavenger_interval)
+                
+                scavenger_count = 0
+                
+                while scavenger_count < max_scavenger_attacks and not success and (time.time() - scavenger_start) < max_scavenger_time:
+                    scavenger_count += 1
+                    scavenger_time = datetime.now()
+                    
+                    logging.info(f"🏴‍☠️ SCAVENGER Attack #{scavenger_count}/{max_scavenger_attacks} - {scavenger_time.strftime('%H:%M:%S')}")
+                    
+                    # Hedef tarihe git ve düşen slotları ara
+                    if self.navigate_to_target_date(target['turkish_date']):
+                        if self.find_and_reserve_slot(target['turkish_date'], "SCAVENGER"):
+                            success = True
+                            total_elapsed = time.time() - start_time
+                            
+                            logging.info(f"🏆 SCAVENGER VICTORY!")
+                            
+                            self.send_email(
+                                f"🏴‍☠️ {target['day_name']} SCAVENGER VICTORY!",
+                                f"""🏴‍☠️ SCAVENGER MODE VICTORY!
+                                
+📅 Tarih: {target['turkish_date']} ({target['day_name']})
+🔢 Attack: #{scavenger_count}/{max_scavenger_attacks}
 ⏱️ Total: {total_elapsed:.0f}s
-🔥 War Zone: 00:00-00:05 coverage
-⏰ Duration: 8 dakika
+🏴‍☠️ Phase: SCAVENGER MODE (03:30+)
+⏰ Victory Time: {scavenger_time.strftime('%H:%M:%S')}
+🏟️ Tesis: Kalamış Spor Tesisi
 
-Working logic ile tam coverage ama slot alınamadı.
-Muhtemelen slot mevcut değil veya çok hızlı doldu. 📊"""
-            )
+Düşen rezervasyonu kaptık! 🎯"""
+                            )
+                            return
+                    
+                    if scavenger_count < max_scavenger_attacks:
+                        time.sleep(scavenger_interval)
+            
+            # Final rapor
+            if not success:
+                total_elapsed = time.time() - start_time
+                
+                logging.warning(f"❌ DUAL ATTACK tamamlandı - Başarısız")
+                
+                self.send_email(
+                    f"📊 {target['day_name']} DUAL ATTACK Raporu",
+                    f"""📊 DUAL ATTACK RAPORU - {target['day_name']}
+                    
+📅 Tarih: {target['turkish_date']}
+⏱️ Total: {total_elapsed:.0f}s
+🔥 WAR ZONE: 00:00-00:05 (İlk saldırı)
+🏴‍☠️ SCAVENGER: 03:30+ (Düşen rezervasyonlar)
+
+Her iki saldırıda da slot alınamadı.
+Çok yoğun rekabet veya slot mevcut değil. 📊"""
+                )
             
         except Exception as e:
             total_elapsed = time.time() - start_time
-            logging.error(f"WAR ZONE Ana hata ({total_elapsed:.0f}s): {str(e)}")
+            logging.error(f"DUAL ATTACK Ana hata ({total_elapsed:.0f}s): {str(e)}")
             self.send_email(
-                f"❌ {self.target_day} WAR ZONE Hatası", 
+                f"❌ {self.target_day} DUAL ATTACK Hatası", 
                 f"Hata ({total_elapsed:.0f}s): {str(e)}"
             )
         
@@ -707,7 +779,7 @@ Muhtemelen slot mevcut değil veya çok hızlı doldu. 📊"""
             if self.driver:
                 try:
                     logging.info(f"📍 Son URL: {self.driver.current_url}")
-                    self.driver.save_screenshot(f"war_zone_{self.target_day.lower()}_result.png")
+                    self.driver.save_screenshot(f"dual_attack_{self.target_day.lower()}_result.png")
                     logging.info("📸 Ekran görüntüsü kaydedildi")
                 except:
                     logging.warning("⚠️ Ekran görüntüsü kaydedilemedi")
@@ -717,13 +789,13 @@ Muhtemelen slot mevcut değil veya çok hızlı doldu. 📊"""
 
 def main():
     target_day = os.environ.get('TARGET_DAY', 'PAZARTESI')
-    logging.info(f"🏟️ WAR ZONE Halısaha Bot")
+    logging.info(f"🏟️ DUAL ATTACK Halısaha Bot")
     logging.info(f"🎯 Hedef Gün: {target_day}")
-    logging.info(f"🔧 Base: Working test code logic")
+    logging.info(f"🔥 WAR ZONE (00:00) + 🏴‍☠️ SCAVENGER (03:30)")
     logging.info("="*60)
     
-    bot = HalisahaBot()
-    bot.run_war_zone_attack()
+    bot = DualAttackHalisahaBot()
+    bot.run_dual_attack()
 
 if __name__ == "__main__":
     main()
