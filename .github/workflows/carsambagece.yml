@@ -1,0 +1,50 @@
+name: 🏴‍☠️ SCAVENGER Halısaha Bot - Pazartesi
+
+on:
+  schedule:
+    # Her Pazartesi 00:25 UTC (Türkiye 03:25)
+    - cron: '25 0 * * 3'
+  workflow_dispatch:
+
+jobs:
+  scavenger-pazartesi:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    
+    steps:
+    - name: 📥 Checkout Repository
+      uses: actions/checkout@v4
+    
+    - name: 🐍 Setup Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: 🌐 Setup Chrome
+      uses: browser-actions/setup-chrome@v1
+    
+    - name: 🚗 Setup ChromeDriver
+      uses: nanasess/setup-chromedriver@v2
+    
+    - name: 📦 Install Dependencies
+      run: |
+        pip install --upgrade pip
+        pip install selenium==4.15.2
+    
+    - name: 🏴‍☠️ Run SCAVENGER Pazartesi Bot
+      env:
+        HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
+        HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
+        NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
+        EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+        TARGET_DAY: "PAZARTESI"
+        ATTACK_MODE: "SCAVENGER_ONLY"
+      run: python halisaha_bot.py
+    
+    - name: 📸 Upload Screenshots
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: scavenger-pazartesi-screenshots
+        path: "*.png"
+        retention-days: 3
