@@ -450,69 +450,96 @@ class DualAttackHalisahaBot:
             logging.error(f"❌ Slot detection test hatası: {e}")
     
     def navigate_to_target_date(self, target_date_str):
-        """Hedef tarihe git - Working logic"""
+    """Hedef tarihe git - Page recovery added"""
+    try:
+        logging.info(f"🗓️ Hedef tarihe navigasyon: {target_date_str}")
+        
+        # Page recovery - Eğer yanlış sayfadaysak facility'ye dön
+        current_url = self.driver.current_url
+        if "MyReservation" in current_url or "giris" in current_url:
+            logging.info("📍 Yanlış sayfa - Facility'ye dönülüyor...")
+            self.driver.get(self.target_facility_url)
+            time.sleep(5)
+        
+        # Alert handling
+        self.dismiss_alerts()
+        
+        # Mevcut tarihi al - Error handling ile
         try:
-            logging.info(f"🗓️ Hedef tarihe navigasyon: {target_date_str}")
-            
-            # Alert handling
-            self.dismiss_alerts()
-            
-            # Mevcut tarihi al
             current_date = self.driver.find_element(By.CLASS_NAME, "yonlendirme-info").text
             logging.info(f"📅 Başlangıç tarih aralığı: {current_date}")
-            
-            max_attempts = 15  # Daha fazla deneme
-            current_attempt = 0
-            
-            while current_attempt < max_attempts:
-                try:
-                    # Fresh date check
-                    current_date = self.driver.find_element(By.CLASS_NAME, "yonlendirme-info").text
-                    logging.info(f"📍 Deneme {current_attempt + 1}: Mevcut tarih aralığı: '{current_date}'")
-                    
-                    if not current_date:
-                        logging.warning("⚠️ Tarih bilgisi yok, bekleniyor...")
-                        time.sleep(2)
-                        current_attempt += 1
-                        continue
-                    
-                    # Hedef tarih kontrolü
-                    if is_date_in_range(target_date_str, current_date):
-                        logging.info("✅ HEDEF TARİH BULUNDU! Aralık içinde.")
-                        return True
-                    
-                    # Hangi yöne gidileceğini belirle
-                    direction = get_navigation_direction(target_date_str, current_date)
-                    
-                    if direction == "found":
-                        logging.info("✅ HEDEF TARİH BULUNDU! (Parse kontrolü)")
-                        return True
-                    elif direction == "prev":
-                        logging.info("⬅️ Önceki haftaya geçiliyor...")
-                        button = self.driver.find_element(By.ID, "area-onceki-hafta")
-                        self.driver.execute_script("arguments[0].click();", button)
-                    elif direction == "next":
-                        logging.info("➡️ Sonraki haftaya geçiliyor...")
-                        button = self.driver.find_element(By.ID, "area-sonraki-hafta")
-                        self.driver.execute_script("arguments[0].click();", button)
-                    
-                    time.sleep(3)  # Sayfa yüklenmesi için bekle
-                    current_attempt += 1
-                    
-                    # Alert check after navigation
-                    self.dismiss_alerts()
-                    
-                except Exception as nav_error:
-                    logging.error(f"❌ Navigasyon hatası: {nav_error}")
-                    current_attempt += 1
+        except:
+            logging.warning("⚠️ yonlendirme-info bulunamadı - Sayfa yenileniyor...")
+            self.driver.refresh()
+            time.sleep(5)
+            try:
+                current_date = self.driver.find_element(By.CLASS_NAME, "yonlendirme-info").text
+                logging.info(f"📅 Refresh sonrası tarih: {current_date}")
+            except:
+                logging.error("❌ Tarih elementi hala bulunamıyor!")
+                return False
+        
+        max_attempts = 15
+        current_attempt = 0
+        
+        while current_attempt < max_attempts:
+            try:
+                # Fresh date check
+                current_date = self.driver.find_element(By.CLASS_NAME, "yonlendirme-info").text
+                logging.info(f"📍 Deneme {current_attempt + 1}: Mevcut tarih aralığı: '{current_date}'")
+                
+                if not current_date:
+                    logging.warning("⚠️ Tarih bilgisi yok, bekleniyor...")
                     time.sleep(2)
-            
-            logging.error(f"❌ {max_attempts} denemede hedef tarihe ulaşılamadı")
-            return False
-            
-        except Exception as e:
-            logging.error(f"❌ Tarih navigasyon genel hatası: {str(e)}")
-            return False
+                    current_attempt += 1
+                    continue
+                
+                # Hedef tarih kontrolü
+                if is_date_in_range(target_date_str, current_date):
+                    logging.info("✅ HEDEF TARİH BULUNDU! Aralık içinde.")
+                    return True
+                
+                # Hangi yöne gidileceğini belirle
+                direction = get_navigation_direction(target_date_str, current_date)
+                
+                if direction == "found":
+                    logging.info("✅ HEDEF TARİH BULUNDU! (Parse kontrolü)")
+                    return True
+                elif direction == "prev":
+                    logging.info("⬅️ Önceki haftaya geçiliyor...")
+                    button = self.driver.find_element(By.ID, "area-onceki-hafta")
+                    self.driver.execute_script("arguments[0].click();", button)
+                elif direction == "next":
+                    logging.info("➡️ Sonraki haftaya geçiliyor...")
+                    button = self.driver.find_element(By.ID, "area-sonraki-hafta")
+                    self.driver.execute_script("arguments[0].click();", button)
+                
+                time.sleep(3)  # Sayfa yüklenmesi için bekle
+                current_attempt += 1
+                
+                # Alert check after navigation
+                self.dismiss_alerts()
+                
+            except Exception as nav_error:
+                logging.error(f"❌ Navigasyon hatası: {nav_error}")
+                
+                # RECOVERY ATTEMPT - Bu eklendi!
+                logging.info("🔄 Recovery - Facility sayfasına dönülüyor...")
+                try:
+                    self.driver.get(self.target_facility_url)
+                    time.sleep(5)
+                except:
+                    logging.error("❌ Recovery başarısız")
+                
+                current_attempt += 1
+                time.sleep(2)
+        
+        logging.error(f"❌ {max_attempts} denemede hedef tarihe ulaşılamadı")
+        return False
+        
+    except Exception as e:
+        logging.error(f"❌ Tarih navigasyon genel hatası: {str(e)}")
+        return False
     
     def dismiss_alerts(self):
         """Alert/popup'ları temizle"""
@@ -654,64 +681,53 @@ class DualAttackHalisahaBot:
             return False
     
     def check_reservation_success(self, target_date_str, target_hour):
-        """Rezervasyonun başarılı olup olmadığını kontrol et"""
-        try:
-            logging.info(f"🔍 Rezervasyon kontrolü: {target_date_str} - {target_hour}")
-            
-            # Rezervasyonlarım sayfasına git
-            self.driver.get(f"{self.base_url}/ClubMember/MyReservation.aspx")
-            time.sleep(3)
-            
-            # Tablodaki tüm satırları bul
-            rows = self.driver.find_elements(By.CSS_SELECTOR, "#AreaReservationTable tbody tr")
-            logging.info(f"📊 Tabloda {len(rows)} satır bulundu")
-            
-            # Tarih formatını rezervasyon kontrol için düzenle
-            target_dt = parse_turkish_date(target_date_str)
-            if target_dt:
-                check_date = target_dt.strftime("%d.%m.%Y")
-                short_date = target_dt.strftime("%d.%m")
-            else:
-                check_date = target_date_str
-                short_date = target_date_str
-            
-            check_hour = target_hour.replace("/", " - ") if target_hour else ""
-            
-            logging.info(f"🔍 Aranan: {check_date} - {check_hour}")
-            
-            # Her satırı kontrol et
-            for i, row in enumerate(rows):
-                try:
-                    cells = row.find_elements(By.TAG_NAME, "td")
-                    if len(cells) >= 5:
-                        date_cell = cells[2].text if len(cells) > 2 else ""
-                        hour_cell = cells[3].text if len(cells) > 3 else ""
-                        status = cells[4].text if len(cells) > 4 else ""
+    """Rezervasyonun başarılı olup olmadığını kontrol et - FIXED"""
+    try:
+        logging.info(f"🔍 Rezervasyon kontrolü: {target_date_str} - {target_hour}")
+        
+        # Rezervasyonlarım sayfasına git
+        self.driver.get(f"{self.base_url}/ClubMember/MyReservation.aspx")
+        time.sleep(3)
+        
+        # Tablodaki tüm satırları bul
+        rows = self.driver.find_elements(By.CSS_SELECTOR, "#AreaReservationTable tbody tr")
+        logging.info(f"📊 Tabloda {len(rows)} satır bulundu")
+        
+        # Saat formatını düzenle (TARİH KONTROLÜ YOK!)
+        check_hour = target_hour.replace("/", " - ") if target_hour else ""
+        
+        logging.info(f"🔍 Aranan saat: {check_hour}")
+        
+        # Her satırı kontrol et
+        for i, row in enumerate(rows):
+            try:
+                cells = row.find_elements(By.TAG_NAME, "td")
+                if len(cells) >= 3:  # En az 3 kolon: [Tesis], [Saat], [Durum]
+                    facility_cell = cells[0].text if len(cells) > 0 else ""
+                    hour_cell = cells[1].text if len(cells) > 1 else ""
+                    status = cells[2].text if len(cells) > 2 else ""
+                    
+                    logging.info(f"📋 Satır {i+1}: {facility_cell} | {hour_cell} | {status}")
+                    
+                    # SADECE SAAT KONTROLÜ (tarih yok çünkü tabloda tarih kolonu yok!)
+                    hour_match = check_hour in hour_cell if check_hour else True
+                    
+                    if hour_match and ("Ön Onaylı" in status or "Onaylı" in status):
+                        logging.info(f"✅ REZERVASYON BAŞARILI!")
+                        logging.info(f"   Tesis: {facility_cell}")
+                        logging.info(f"   Saat: {hour_cell}")
+                        logging.info(f"   Durum: {status}")
+                        return True
                         
-                        logging.info(f"📋 Satır {i+1}: {date_cell} | {hour_cell} | {status}")
-                        
-                        # Tarih ve saat kontrolü
-                        date_match = (check_date in date_cell or short_date in date_cell or target_date_str in date_cell)
-                        hour_match = check_hour in hour_cell if check_hour else True
-                        
-                        if date_match and hour_match:
-                            logging.info(f"✅ Rezervasyon bulundu:")
-                            logging.info(f"   Tarih: {date_cell}")
-                            logging.info(f"   Saat: {hour_cell}")
-                            logging.info(f"   Durum: {status}")
-                            
-                            if "Ön Onaylı" in status or "Onaylı" in status:
-                                return True
-                            
-                except Exception as row_error:
-                    logging.error(f"⚠️ Satır {i+1} okuma hatası: {str(row_error)}")
-                    continue
-            
-            return False
-            
-        except Exception as e:
-            logging.error(f"❌ Rezervasyon kontrolü hatası: {str(e)}")
-            return False
+            except Exception as row_error:
+                logging.error(f"⚠️ Satır {i+1} okuma hatası: {str(row_error)}")
+                continue
+        
+        return False
+        
+    except Exception as e:
+        logging.error(f"❌ Rezervasyon kontrolü hatası: {str(e)}")
+        return False
     
     def send_email(self, subject, message):
         """Email gönder"""
