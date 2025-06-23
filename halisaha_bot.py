@@ -247,7 +247,7 @@ class DualAttackHalisahaBot:
         return f"{date_obj.day} {month_names[date_obj.month]} {date_obj.year}"
     
     def setup_driver(self):
-        """Driver setup - GitHub Actions optimized"""
+        """Driver setup - Session preserved"""
         try:
             logging.info("🔧 Driver setup başladı")
             
@@ -263,7 +263,17 @@ class DualAttackHalisahaBot:
             chrome_options.add_argument('--disable-extensions')
             chrome_options.add_argument('--memory-pressure-off')
             
+            # SESSION PRESERVATION için ekledik 🔥
+            chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
+            chrome_options.add_argument('--disable-blink-features=AutomationControlled')
+            chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
+            chrome_options.add_experimental_option('useAutomationExtension', False)
+            
             self.driver = webdriver.Chrome(options=chrome_options)
+            
+            # Anti-detection
+            self.driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+            
             self.driver.set_page_load_timeout(15)
             self.driver.implicitly_wait(3)
             
@@ -275,31 +285,55 @@ class DualAttackHalisahaBot:
             return False
     
     def login(self):
-        """Login işlemi"""
+        """Login işlemi - Session preserved"""
         try:
             logging.info("🔐 Giriş işlemi başlatılıyor...")
             
             self.driver.get(f"{self.base_url}/giris")
+            time.sleep(3)  # Sayfa yüklenmesi
             
             username_field = WebDriverWait(self.driver, 10).until(
                 EC.presence_of_element_located((By.NAME, "username"))
             )
             password_field = self.driver.find_element(By.NAME, "password")
             
-            # JavaScript ile değer set et (daha güvenilir)
-            self.driver.execute_script(f"arguments[0].value = '{self.username}';", username_field)
-            self.driver.execute_script(f"arguments[0].value = '{self.password}';", password_field)
+            # Clear ve type et (daha güvenilir)
+            username_field.clear()
+            username_field.send_keys(self.username)
+            
+            password_field.clear()
+            password_field.send_keys(self.password)
+            
+            time.sleep(1)  # Form doldurma beklemesi
             
             login_button = self.driver.find_element(By.ID, "btnLoginSubmit")
             self.driver.execute_script("arguments[0].click();", login_button)
             
-            time.sleep(3)
+            # Login sonrası daha fazla bekle
+            time.sleep(5)  # 3 → 5 saniye
             
-            if "giris" not in self.driver.current_url:
-                logging.info("✅ Giriş başarılı")
-                return True
+            current_url = self.driver.current_url
+            logging.info(f"📍 Login sonrası URL: {current_url}")
+            
+            # SESSION CHECK - Daha detaylı kontrol
+            if "giris" not in current_url:
+                # Ek kontrol: Dashboard'da mıyız?
+                try:
+                    # Logout link varsa login olmuşuz demektir
+                    logout_element = self.driver.find_element(By.PARTIAL_LINK_TEXT, "Çıkış")
+                    logging.info("✅ Session aktif - Logout linki bulundu")
+                    return True
+                except:
+                    # Alternatif kontrol
+                    page_source = self.driver.page_source
+                    if "rezervasyon" in page_source.lower() or "üye" in page_source.lower():
+                        logging.info("✅ Session aktif - İçerik kontrol başarılı")
+                        return True
+                    else:
+                        logging.error("❌ Session kontrol başarısız")
+                        return False
             else:
-                logging.error("❌ Giriş başarısız")
+                logging.error("❌ Giriş başarısız - Hala login sayfasında")
                 return False
                 
         except Exception as e:
@@ -307,19 +341,113 @@ class DualAttackHalisahaBot:
             return False
     
     def navigate_to_facility(self):
-        """Halısaha sayfasına git"""
+        """Halısaha sayfasına git - Session aware"""
         try:
             logging.info("🏟️ Halısaha sayfasına yönlendiriliyor...")
             
+            # Session kontrolü
+            current_url = self.driver.current_url
+            logging.info(f"📍 Facility'ye gitmeden önce URL: {current_url}")
+            
+            # Session check
+            try:
+                logout_element = self.driver.find_element(By.PARTIAL_LINK_TEXT, "Çıkış")
+                logging.info("✅ Session kontrol OK - Devam ediliyor")
+            except:
+                logging.warning("⚠️ Session kontrolü başarısız - Yeniden login deneniyor")
+                if not self.login():
+                    return False
+            
+            # Facility sayfasına git
             self.driver.get(self.target_facility_url)
-            time.sleep(5)  # Sayfa yüklenmesi için
+            time.sleep(8)  # 5 → 8 saniye (daha fazla bekle)
             
-            logging.info(f"✅ Halısaha sayfası: {self.driver.current_url}")
-            return True
+            final_url = self.driver.current_url
+            logging.info(f"✅ Halısaha sayfası: {final_url}")
             
+            # CONTENT CHECK - Sayfanın doğru yüklendiğini kontrol et
+            try:
+                # Tarih navigation elementini ara
+                date_element = self.driver.find_element(By.CLASS_NAME, "yonlendirme-info")
+                logging.info(f"✅ Sayfa içeriği yüklendi: {date_element.text}")
+                return True
+            except:
+                logging.error("❌ Sayfa içeriği yüklenmedi - Slot takvimi bulunamadı")
+                
+                # Debug: Page source'a bak
+                page_source = self.driver.page_source
+                if "giriş" in page_source.lower() or "login" in page_source.lower():
+                    logging.error("❌ Sayfada login formu var - Session kaybedildi!")
+                    return False
+                else:
+                    logging.warning("⚠️ Sayfa farklı ama login değil - Devam ediliyor")
+                    return True
+                
         except Exception as e:
             logging.error(f"❌ Sayfa yönlendirme hatası: {str(e)}")
             return False
+    
+    def test_slot_detection(self, target_date_str):
+        """DEBUG: Slot detection test"""
+        try:
+            logging.info(f"🔍 SLOT DETECTION TEST: {target_date_str}")
+            
+            # SESSION CHECK FIRST
+            try:
+                logout_element = self.driver.find_element(By.PARTIAL_LINK_TEXT, "Çıkış")
+                logging.info("✅ Session aktif")
+            except:
+                logging.error("❌ Session kaybolmuş!")
+                return
+            
+            if not self.navigate_to_target_date(target_date_str):
+                logging.error("❌ Hedef tarihe gidemedi")
+                return
+            
+            # Tüm slotları detailed logla
+            all_slots = self.driver.find_elements(By.CSS_SELECTOR, "div.lesson.active")
+            logging.info(f"📊 Toplam {len(all_slots)} aktif slot bulundu")
+            
+            if len(all_slots) == 0:
+                logging.error("❌ HİÇ SLOT BULUNAMADI!")
+                
+                # Debug: Farklı selector'lar dene
+                alternative_slots = self.driver.find_elements(By.CSS_SELECTOR, "div.lesson")
+                logging.info(f"📊 Alternatif selector: {len(alternative_slots)} slot")
+                
+                all_divs = self.driver.find_elements(By.TAG_NAME, "div")
+                lesson_divs = [div for div in all_divs if "lesson" in div.get_attribute("class")]
+                logging.info(f"📊 Manuel arama: {len(lesson_divs)} lesson div")
+                
+                return
+            
+            # TÜM slotları göster
+            for i, slot in enumerate(all_slots[:20]):  # İlk 20 slot
+                try:
+                    date = slot.get_attribute("data-dateformatted")
+                    hour = slot.get_attribute("data-hour")
+                    slot_text = slot.text.strip()
+                    slot_class = slot.get_attribute("class")
+                    
+                    logging.info(f"📍 Slot {i+1}:")
+                    logging.info(f"    Date: '{date}'")
+                    logging.info(f"    Hour: '{hour}'")
+                    logging.info(f"    Text: '{slot_text}'")
+                    logging.info(f"    Class: '{slot_class}'")
+                    
+                    # Hedef tarih match?
+                    if date == target_date_str:
+                        logging.info(f"    ✅ HEDEF TARİH MATCH!")
+                        
+                        # Hedef saat match?
+                        if hour in self.preferred_hours:
+                            logging.info(f"    🎯 HEDEF SAAT MATCH: {hour}")
+                    
+                except Exception as e:
+                    logging.error(f"    ❌ Slot {i+1} okuma hatası: {e}")
+            
+        except Exception as e:
+            logging.error(f"❌ Slot detection test hatası: {e}")
     
     def navigate_to_target_date(self, target_date_str):
         """Hedef tarihe git - Working logic"""
