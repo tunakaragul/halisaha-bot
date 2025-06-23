@@ -9,7 +9,7 @@ on:
 jobs:
   scavenger-pazartesi:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     
     steps:
     - name: 📥 Checkout Repository
