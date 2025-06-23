@@ -1,15 +1,15 @@
-name: 🏴‍☠️ SCAVENGER Halısaha Bot - Pazartesi
+name: 🏴‍☠️ SCAVENGER Halısaha Bot - Perşembe
 
 on:
   schedule:
-    # Her Pazartesi 00:25 UTC (Türkiye 03:25)
+    # Her Perşembe 00:25 UTC (Türkiye 03:25)
     - cron: '25 0 * * 4'
   workflow_dispatch:
 
 jobs:
-  scavenger-pazartesi:
+  scavenger-persembe:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 18
     
     steps:
     - name: 📥 Checkout Repository
@@ -31,13 +31,13 @@ jobs:
         pip install --upgrade pip
         pip install selenium==4.15.2
     
-    - name: 🏴‍☠️ Run SCAVENGER Pazartesi Bot
+    - name: 🏴‍☠️ Run SCAVENGER Perşembe Bot
       env:
         HALISAHA_USERNAME: ${{ secrets.HALISAHA_USERNAME }}
         HALISAHA_PASSWORD: ${{ secrets.HALISAHA_PASSWORD }}
         NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-        TARGET_DAY: "PAZARTESI"
+        TARGET_DAY: "PERSEMBE"
         ATTACK_MODE: "SCAVENGER_ONLY"
       run: python halisaha_bot.py
     
@@ -45,6 +45,6 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: scavenger-pazartesi-screenshots
+        name: scavenger-persembe-screenshots
         path: "*.png"
         retention-days: 3
