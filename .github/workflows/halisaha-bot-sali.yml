@@ -9,7 +9,7 @@ on:
 jobs:
   war-zone-sali:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     
     steps:
     - name: 📥 Checkout Repository
@@ -38,6 +38,7 @@ jobs:
         NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         TARGET_DAY: "SALI"
+        ATTACK_MODE: "WAR_ZONE_ONLY"
       run: python halisaha_bot.py
     
     - name: 📸 Upload Screenshots
