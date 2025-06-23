@@ -2,14 +2,14 @@ name: 🔥 WAR ZONE Halısaha Bot - Perşembe
 
 on:
   schedule:
-    # Her Perşembe 20:54 UTC (Türkiye 23:54) - Pazartesi randevusu için
+    # Her Çarşamba 20:54 UTC (Türkiye 23:54)
     - cron: '54 20 * * 3'
   workflow_dispatch:
 
 jobs:
   war-zone-persembe:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     
     steps:
     - name: 📥 Checkout Repository
@@ -38,6 +38,7 @@ jobs:
         NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         TARGET_DAY: "PERSEMBE"
+        ATTACK_MODE: "WAR_ZONE_ONLY"
       run: python halisaha_bot.py
     
     - name: 📸 Upload Screenshots
