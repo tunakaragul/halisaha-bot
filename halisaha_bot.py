@@ -943,16 +943,48 @@ Slot çok hızlı dolmuş olabilir. 📊"""
 
 def main():
     target_day = os.environ.get('TARGET_DAY', 'PAZARTESI')
-    attack_mode = get_attack_mode()
     
-    logging.info(f"🏟️ DUAL ATTACK Halısaha Bot")
+    # TEST MODE - Force WAR ZONE
+    os.environ['ATTACK_MODE'] = 'WAR_ZONE_ONLY'
+    
+    logging.info(f"🧪 TEST MODE - Session Debug")
     logging.info(f"🎯 Hedef Gün: {target_day}")
-    logging.info(f"🎯 Attack Mode: {attack_mode}")
-    logging.info(f"🔥 WAR ZONE (23:54→00:00) + 🏴‍☠️ SCAVENGER (03:25)")
     logging.info("="*60)
     
     bot = DualAttackHalisahaBot()
-    bot.run_dual_attack()
+    
+    # MANUEL TEST
+    try:
+        target = bot.calculate_target_date()
+        if not target:
+            logging.error("Hedef tarih hesaplanamadı")
+            return
+        
+        logging.info(f"🎯 Hedef: {target['day_name']} - {target['turkish_date']}")
+        
+        # Setup ve Login
+        if not bot.setup_driver():
+            logging.error("Driver setup başarısız")
+            return
+            
+        if not bot.login():
+            logging.error("Login başarısız")
+            return
+            
+        # Facility navigation
+        if not bot.navigate_to_facility():
+            logging.error("Facility navigation başarısız")
+            return
+        
+        # SLOT DETECTION TEST
+        bot.test_slot_detection(target['turkish_date'])
+        
+    except Exception as e:
+        logging.error(f"Test hatası: {e}")
+    finally:
+        if bot.driver:
+            bot.driver.save_screenshot("debug_test.png")
+            bot.driver.quit()
 
 if __name__ == "__main__":
     main()
