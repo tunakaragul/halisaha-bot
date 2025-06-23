@@ -2,14 +2,14 @@ name: 🔥 WAR ZONE Halısaha Bot - Pazartesi
 
 on:
   schedule:
-    # Her Pazar 20:54 UTC (Türkiye 23:54) - 6 dakika window
+    # Her Pazar 20:54 UTC (Türkiye 23:54)
     - cron: '54 20 * * 0'
   workflow_dispatch:
 
 jobs:
   war-zone-pazartesi:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 12
     
     steps:
     - name: 📥 Checkout Repository
@@ -38,7 +38,7 @@ jobs:
         NOTIFICATION_EMAIL: ${{ secrets.NOTIFICATION_EMAIL }}
         EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
         TARGET_DAY: "PAZARTESI"
-        ATTACK_MODE: "WAR_ZONE_ONLY"  # ← Bu satır eklendi!
+        ATTACK_MODE: "WAR_ZONE_ONLY"
       run: python halisaha_bot.py
     
     - name: 📸 Upload Screenshots
