@@ -756,82 +756,82 @@ class DualAttackHalisahaBot:
             logging.error(f"E-posta hatası: {str(e)}")
     
     def wait_for_slots_to_open(self, target_date_str, max_wait_minutes=10):
-    """Slotların açılmasını bekle"""
-    try:
-        logging.info(f"⏳ {target_date_str} slotlarının açılması bekleniyor...")
-        
-        wait_start = time.time()
-        max_wait_seconds = max_wait_minutes * 60
-        check_interval = 30  # 30 saniyede bir kontrol
-        
-        while (time.time() - wait_start) < max_wait_seconds:
-            # Hedef tarihe git
-            if self.navigate_to_target_date(target_date_str):
-                # Slotları kontrol et
-                all_slots = self.driver.find_elements(By.CSS_SELECTOR, "div.lesson.active")
-                target_date_slots = []
+        """Slotların açılmasını bekle - İyileştirilmiş"""
+        try:
+            logging.info(f"⏳ {target_date_str} slotlarının açılması bekleniyor...")
+            
+            wait_start = time.time()
+            max_wait_seconds = max_wait_minutes * 60
+            check_interval = 15  # 15 saniye (daha sık kontrol)
+            
+            while (time.time() - wait_start) < max_wait_seconds:
+                current_time = datetime.now()
                 
-                for slot in all_slots:
-                    try:
-                        date = slot.get_attribute("data-dateformatted")
-                        if date == target_date_str:
-                            target_date_slots.append(slot)
-                    except:
-                        continue
-                
-                if len(target_date_slots) > 0:
-                    logging.info(f"🎉 {target_date_str} slotları açıldı! {len(target_date_slots)} slot bulundu")
-                    return True
+                # Hedef tarihe git
+                if self.navigate_to_target_date(target_date_str):
+                    # Slotları kontrol et
+                    all_slots = self.driver.find_elements(By.CSS_SELECTOR, "div.lesson.active")
+                    target_date_slots = []
+                    
+                    for slot in all_slots:
+                        try:
+                            date = slot.get_attribute("data-dateformatted")
+                            if date == target_date_str:
+                                target_date_slots.append(slot)
+                        except:
+                            continue
+                    
+                    if len(target_date_slots) > 0:
+                        logging.info(f"🎉 {target_date_str} slotları açıldı! {len(target_date_slots)} slot bulundu")
+                        return True
+                    else:
+                        elapsed = int(time.time() - wait_start)
+                        logging.info(f"⏳ {current_time.strftime('%H:%M:%S')} - Henüz slot yok. Bekleniyor... ({elapsed}s)")
+                        time.sleep(check_interval)
                 else:
-                    current_time = datetime.now()
-                    elapsed = int(time.time() - wait_start)
-                    logging.info(f"⏳ {current_time.strftime('%H:%M:%S')} - {target_date_str} slotları henüz yok. Bekleniyor... ({elapsed}s)")
-                    time.sleep(check_interval)
-            else:
-                logging.warning("⚠️ Hedef tarihe gidilemedi, tekrar deneniyor...")
-                time.sleep(check_interval)
-        
-        logging.warning(f"⏰ {max_wait_minutes} dakika beklendi, {target_date_str} slotları açılmadı")
-        return False
-        
-    except Exception as e:
-        logging.error(f"❌ Slot bekleme hatası: {e}")
-        return False
-
+                    logging.warning("⚠️ Hedef tarihe gidilemedi, tekrar deneniyor...")
+                    time.sleep(check_interval // 2)  # Daha hızlı retry
+            
+            logging.warning(f"⏰ {max_wait_minutes} dakika beklendi, slotlar açılmadı")
+            return False
+            
+        except Exception as e:
+            logging.error(f"❌ Slot bekleme hatası: {e}")
+            return False
     def run_war_zone_attack(self, target):
-        """WAR ZONE saldırısı - Slot açılma beklemeli"""
+        """WAR ZONE saldırısı - 23:56'dan itibaren slot kontrolü"""
         logging.info("🔥 WAR ZONE ATTACK BAŞLADI!")
         
         current_time = datetime.now()
         
-        # 23:54'de başladıysak, 00:00'a kadar hazırlık yap
-        if current_time.hour == 23:
-            logging.info("⏳ 00:00'a kadar hazırlık yapılıyor...")
+        # 23:54-23:56 arası hazırlık
+        if current_time.hour == 23 and current_time.minute < 56:
+            logging.info("⏳ 23:56'ya kadar hazırlık yapılıyor...")
             
-            # Pre-load: Hedef tarihe git ve hazırla
+            # Pre-load: Hedef tarihe git
             if self.navigate_to_target_date(target['turkish_date']):
-                logging.info("✅ Pre-load tamamlandı, 00:00 bekleniyor...")
+                logging.info("✅ Pre-load tamamlandı, 23:56 bekleniyor...")
                 
-                # 00:00'a kadar bekle
-                midnight = current_time.replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
-                wait_seconds = (midnight - datetime.now()).total_seconds()
+                # 23:56'ya kadar bekle
+                target_time = current_time.replace(minute=56, second=0, microsecond=0)
+                wait_seconds = (target_time - datetime.now()).total_seconds()
                 
-                if wait_seconds > 0 and wait_seconds < 600:  # Max 10 dakika bekle
-                    logging.info(f"⏰ {wait_seconds:.0f} saniye 00:00 bekleniyor...")
+                if wait_seconds > 0:
+                    logging.info(f"⏰ {wait_seconds:.0f} saniye 23:56 bekleniyor...")
                     time.sleep(wait_seconds)
         
-        # SLOT AÇILMA BEKLEMESİ - 00:00'dan sonra
+        # 23:56'DAN İTİBAREN SLOT KONTROLÜ - ★ ANA DEĞİŞİKLİK
         current_time = datetime.now()
-        if current_time.hour == 0 and current_time.minute <= 10:
-            logging.info("🕐 Gece yarısı - Slotların açılması bekleniyor...")
-            if not self.wait_for_slots_to_open(target['turkish_date'], max_wait_minutes=5):
+        if (current_time.hour == 23 and current_time.minute >= 56) or (current_time.hour == 0 and current_time.minute <= 10):
+            logging.info("🕐 23:56+ - Slotların açılması bekleniyor...")
+            if not self.wait_for_slots_to_open(target['turkish_date'], max_wait_minutes=10):  # 10 dakika bekle
                 logging.error("❌ Slotlar zamanında açılmadı!")
                 return False
         
         # Ana saldırı (slotlar açıldıktan sonra)
         attack_start = time.time()
-        max_attack_time = 300  # 5 dakika (slotlar açıldıktan sonra)
-        attack_interval = 1.5  # 1.5 saniyede bir (daha agresif!)
+        max_attack_time = 300  # 5 dakika
+        attack_interval = 1.0   # 1 saniye (daha da agresif!)
         max_attacks = int(max_attack_time // attack_interval)
         
         attack_count = 0
