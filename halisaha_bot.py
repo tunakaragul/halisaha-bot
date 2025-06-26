@@ -551,27 +551,52 @@ class DualAttackHalisahaBot:
             pass
     
     def find_and_reserve_slot(self, target_date_str, attack_mode="WAR_ZONE"):
-        """Slot bul ve rezerve et - Mode aware"""
+        """Slot bul ve rezerve et - FULL DEBUG"""
         try:
             mode_emoji = "🔥" if attack_mode == "WAR_ZONE" else "🏴‍☠️"
             logging.info(f"{mode_emoji} {attack_mode}: Hedef tarihte slotlar aranıyor: {target_date_str}")
             time.sleep(3)
             
-            # Alerts dismiss
             self.dismiss_alerts()
             
             all_slots = self.driver.find_elements(By.CSS_SELECTOR, "div.lesson.active")
             logging.info(f"📊 Toplam {len(all_slots)} aktif slot bulundu")
             
-            # Debug: Tüm slotları listele
-            logging.info("📋 Mevcut slotlar:")
-            for i, slot in enumerate(all_slots[:10]):  # İlk 10 slot
+            # ★★★ FULL DEBUG - TÜM SLOTLARI GÖSTER ★★★
+            logging.info("📋 *** TÜM SLOTLAR ***")
+            slot_dates = {}
+            
+            for i, slot in enumerate(all_slots):
                 try:
                     date = slot.get_attribute("data-dateformatted")
-                    hour = slot.get_attribute("data-hour")
-                    logging.info(f"   {i+1:2d}. {date} - {hour}")
-                except:
-                    logging.info(f"   {i+1:2d}. Slot okunamadı")
+                    hour = slot.get_attribute("data-hour") 
+                    
+                    if date not in slot_dates:
+                        slot_dates[date] = []
+                    slot_dates[date].append(hour)
+                    
+                    # İlk 25 slotu detaylı göster
+                    if i < 25:
+                        logging.info(f"   {i+1:2d}. {date} - {hour}")
+                        
+                except Exception as e:
+                    logging.error(f"   {i+1:2d}. Slot okuma hatası: {e}")
+            
+            # Tarih bazında özet
+            logging.info("📅 *** TARİH ÖZETİ ***")
+            for date in sorted(slot_dates.keys()):
+                count = len(slot_dates[date])
+                hours = slot_dates[date][:5]  # İlk 5 saat
+                logging.info(f"   📅 {date}: {count} slot - Örnek saatler: {hours}")
+            
+            # Hedef tarih kontrolü
+            if target_date_str in slot_dates:
+                target_slots = slot_dates[target_date_str]
+                logging.info(f"🎯 {target_date_str} tarihinde {len(target_slots)} slot var!")
+                logging.info(f"   Saatler: {target_slots}")
+            else:
+                logging.error(f"❌ {target_date_str} tarihinde HİÇ SLOT YOK!")
+                logging.info(f"   Mevcut tarihler: {sorted(slot_dates.keys())}")
             
             # Hedef slotu ara
             target_slot = None
@@ -596,22 +621,10 @@ class DualAttackHalisahaBot:
                     break
             
             if not target_slot:
-                logging.error(f"❌ {attack_mode}: Hedef slot bulunamadı: {target_date_str}")
-                
-                # Sadece hedef tarih slotlarını göster
-                logging.info(f"🔍 {target_date_str} tarihli tüm slotlar:")
-                for slot in all_slots:
-                    try:
-                        date = slot.get_attribute("data-dateformatted")
-                        hour = slot.get_attribute("data-hour")
-                        if date == target_date_str:
-                            logging.info(f"   📅 {target_date_str} slot: {hour}")
-                    except:
-                        continue
-                
+                logging.error(f"❌ {attack_mode}: Prime time slot bulunamadı: {target_date_str}")
                 return False
             
-            # REZERVASYON İŞLEMİ
+            # REZERVASYON İŞLEMİ - ESKİ KOD AYNI KALACAK
             logging.info(f"✅ {mode_emoji} Slot bulundu, rezervasyon işlemi başlatılıyor...")
             logging.info(f"📍 Slot detayı: {target_date_str} - {found_hour}")
             
